@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ArrowDownTrayIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 interface ScriptDisplayProps {
@@ -90,22 +90,47 @@ const FormattedScript: React.FC<FormattedScriptProps> = ({ text, showAnnotations
 const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading }) => {
     const [showAnnotations, setShowAnnotations] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
+    const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
+    const downloadMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
+                setIsDownloadMenuOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     if (isLoading && !script) {
         return null; // Don't show anything until loading is done or script is available
     }
+
+    const stripAnnotations = (text: string): string => {
+        const annotationRegex = /\s*\([^)]+\)$/;
+        return text
+            .split('\n')
+            .map(line => line.replace(annotationRegex, '').trimEnd())
+            .join('\n');
+    };
     
-    const handleDownload = () => {
+    const handleDownload = (withAnnotations: boolean) => {
         if (!script) return;
-        const blob = new Blob([script], { type: 'text/plain;charset=utf-8' });
+        
+        const content = withAnnotations ? script : stripAnnotations(script);
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'kich-ban-phim-hoat-hinh.txt';
+        link.download = `kich-ban${withAnnotations ? '-co-chu-thich' : '-khong-chu-thich'}.txt`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        setIsDownloadMenuOpen(false); // Close menu after download
     };
     
     const handleCopy = () => {
@@ -135,13 +160,39 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading }) => {
                       >
                           Chú thích tiếng Việt
                       </button>
-                      <button
-                          onClick={handleDownload}
+                      
+                      <div className="relative" ref={downloadMenuRef}>
+                        <button
+                          onClick={() => setIsDownloadMenuOpen(prev => !prev)}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
-                          title="Tải kịch bản dưới dạng tệp .txt"
-                      >
+                          title="Tải kịch bản"
+                        >
                           <ArrowDownTrayIcon className="w-4 h-4" />
-                      </button>
+                        </button>
+                        {isDownloadMenuOpen && (
+                          <div className="absolute top-full right-0 mt-2 w-max bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 p-1">
+                            <ul>
+                              <li>
+                                <button
+                                  onClick={() => handleDownload(true)}
+                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
+                                >
+                                  Tải về (Có chú thích)
+                                </button>
+                              </li>
+                              <li>
+                                <button
+                                  onClick={() => handleDownload(false)}
+                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
+                                >
+                                  Tải về (Không chú thích)
+                                </button>
+                              </li>
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+
                        <button
                           onClick={handleCopy}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
