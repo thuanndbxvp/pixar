@@ -1,58 +1,31 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ArrowDownTrayIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { ArrowDownTrayIcon, ClipboardDocumentIcon, CheckIcon, LanguageIcon } from '@heroicons/react/24/outline';
+import * as geminiService from '../services/geminiService';
+import * as openaiService from '../services/openaiService';
+import type { AIConfig } from '../types';
+import TranslationModal from './TranslationModal';
 
 interface ScriptDisplayProps {
     script: string;
     isLoading: boolean;
     storyTitle: string | null;
+    aiConfig: AIConfig | null;
 }
 
-interface FormattedScriptProps {
-  text: string;
-  showAnnotations: boolean;
-}
-
-const renderLine = (line: string, showAnnotations: boolean, key: string | number) => {
-    // Regex to find annotation like "(...)" at the end of a line, allowing for trailing punctuation.
-    const annotationRegex = /\s*\(([^)]+)\)([:.]*)$/;
-    const match = line.match(annotationRegex);
-
-    let mainText: string;
-    let annotationText: string | null;
-
-    if (match) {
-        mainText = (line.substring(0, match.index) + (match[2] || '')).trim();
-        annotationText = match[1];
-    } else {
-        mainText = line;
-        annotationText = null;
-    }
-
-    const annotationElement = showAnnotations && annotationText ? (
-        <div className="mt-1.5 ml-4 bg-gray-800/70 p-3 rounded-lg border border-gray-700">
-            <p className="text-sm italic text-[var(--theme-400)] opacity-95 leading-relaxed">{annotationText}</p>
-        </div>
-    ) : null;
-
-    // If the line is empty (neither text nor annotation), render nothing.
-    if (!mainText.trim() && !annotationElement) {
-        return null;
-    }
-    
+const renderLine = (line: string, key: string | number) => {
     let mainElement = null;
 
-    if (mainText.trim()) {
-        if (mainText.toUpperCase().startsWith('CHARACTERS')) {
-            mainElement = <h2 className="text-2xl font-bold text-[var(--theme-400)] mt-6">{mainText}</h2>;
-        } else if (mainText.toUpperCase().startsWith('SCENE')) {
-            mainElement = <h3 className="text-xl font-semibold text-[var(--theme-400)] mt-6">{mainText}</h3>;
+    if (line.trim()) {
+        if (line.toUpperCase().startsWith('CHARACTERS')) {
+            mainElement = <h2 className="text-2xl font-bold text-[var(--theme-400)] mt-6">{line}</h2>;
+        } else if (line.toUpperCase().startsWith('SCENE')) {
+            mainElement = <h3 className="text-xl font-semibold text-[var(--theme-400)] mt-6">{line}</h3>;
         } else {
-            // Expanded regex to catch more labels and make them bold
             const labelRegex = /^\s*(Setting|Characters|Action|Emotion\/Lesson|Species|Detailed Appearance|Visual Style Keywords):/;
-            const labelMatch = mainText.match(labelRegex);
+            const labelMatch = line.match(labelRegex);
             if (labelMatch) {
                 const label = labelMatch[0];
-                const content = mainText.substring(label.length);
+                const content = line.substring(label.length);
                 mainElement = (
                     <p className="text-gray-300 leading-relaxed">
                         <span className="font-semibold text-gray-200">{label}</span>
@@ -62,7 +35,7 @@ const renderLine = (line: string, showAnnotations: boolean, key: string | number
             } else {
                 mainElement = (
                     <p className="text-gray-300 leading-relaxed">
-                        {mainText}
+                        {line}
                     </p>
                 );
             }
@@ -72,14 +45,12 @@ const renderLine = (line: string, showAnnotations: boolean, key: string | number
     return (
         <div key={key} className="mb-2">
             {mainElement}
-            {annotationElement}
         </div>
     );
 };
 
-
-const FormattedScript: React.FC<FormattedScriptProps> = ({ text, showAnnotations }) => {
-  const parts = text.split(/(\n---\n)/g); // Split by separator but keep it
+const FormattedScript: React.FC<{ text: string }> = ({ text }) => {
+  const parts = text.split(/(\n---\n)/g);
   
   return (
     <div className="space-y-6">
@@ -90,7 +61,7 @@ const FormattedScript: React.FC<FormattedScriptProps> = ({ text, showAnnotations
         
         return (
           <div key={index}>
-            {part.split('\n').map((line, lineIndex) => renderLine(line, showAnnotations, `${index}-${lineIndex}`))}
+            {part.split('\n').map((line, lineIndex) => renderLine(line, `${index}-${lineIndex}`))}
           </div>
         );
       })}
@@ -98,67 +69,21 @@ const FormattedScript: React.FC<FormattedScriptProps> = ({ text, showAnnotations
   );
 };
 
-
-const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyTitle }) => {
-    const [showAnnotations, setShowAnnotations] = useState(false);
+const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyTitle, aiConfig }) => {
     const [isCopied, setIsCopied] = useState(false);
-    const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
-    const downloadMenuRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
-                setIsDownloadMenuOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
+    const [isTranslating, setIsTranslating] = useState(false);
+    const [translation, setTranslation] = useState<string | null>(null);
+    const [translationError, setTranslationError] = useState<string | null>(null);
+    const [isTranslationModalOpen, setIsTranslationModalOpen] = useState(false);
 
     if (isLoading && !script) {
-        return null; // Don't show anything until loading is done or script is available
+        return null; 
     }
 
-    const stripAnnotations = (text: string): string => {
-        const annotationRegex = /\s*\([^)]+\)([:.]*)$/;
-        return text
-            .split('\n')
-            .map(line => {
-                const match = line.match(annotationRegex);
-                if (match) {
-                    return (line.substring(0, match.index) + (match[2] || '')).trimEnd();
-                }
-                return line;
-            })
-            .join('\n');
-    };
-
-    const formatScriptForDownload = (text: string): string => {
-        const annotationRegex = /\s*\(([^)]+)\)([:.]*)$/;
-        return text
-            .split('\n')
-            .map(line => {
-                const match = line.match(annotationRegex);
-                if (match) {
-                    const mainText = (line.substring(0, match.index) + (match[2] || '')).trimEnd();
-                    const annotation = `(${match[1]})`;
-                    if (!mainText.trim()) {
-                        return annotation;
-                    }
-                    return `${mainText}\n${annotation}`;
-                }
-                return line;
-            })
-            .join('\n');
-    };
-    
-    const handleDownload = (withAnnotations: boolean) => {
+    const handleDownload = () => {
         if (!script) return;
         
-        const content = withAnnotations ? formatScriptForDownload(script) : stripAnnotations(script);
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const blob = new Blob([script], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -169,14 +94,12 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyT
             .replace(/[^a-zA-Z0-9_]/g, '')
             .toLowerCase();
 
-        const annotationSuffix = withAnnotations ? 'with' : 'without';
-        link.download = `script_pixar_${filenameBase}_${annotationSuffix}_VN.txt`;
+        link.download = `script_pixar_${filenameBase}.txt`;
         
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        setIsDownloadMenuOpen(false); // Close menu after download
     };
     
     const handleCopy = () => {
@@ -189,55 +112,55 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyT
             alert('Không thể sao chép văn bản. Vui lòng thử lại.');
         });
     };
+    
+    const handleTranslate = async () => {
+        if (!script || !aiConfig) return;
+        setIsTranslationModalOpen(true);
+        setIsTranslating(true);
+        setTranslation(null);
+        setTranslationError(null);
+        try {
+            const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+            const result = await service.translateText(script, aiConfig.model);
+            setTranslation(result);
+        } catch (err: any) {
+            setTranslationError(`Không thể dịch kịch bản: ${err.message}`);
+        } finally {
+            setIsTranslating(false);
+        }
+    };
 
     return (
+        <>
+        <TranslationModal
+            isOpen={isTranslationModalOpen}
+            onClose={() => setIsTranslationModalOpen(false)}
+            title="Bản dịch kịch bản"
+            isLoading={isTranslating}
+            translation={translation}
+            error={translationError}
+        />
         <div className="prose prose-invert prose-p:text-gray-300 max-w-none bg-gray-900/50 p-6 rounded-lg ring-1 ring-gray-700">
             <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
               <h2 className="text-2xl font-semibold text-[var(--theme-400)] m-0">Kịch bản được tạo</h2>
               {script && (
                   <div className="flex items-center gap-2">
-                      <button
-                          onClick={() => setShowAnnotations(!showAnnotations)}
-                          className={`px-3 py-1.5 text-sm rounded-md transition-colors font-medium ${
-                            showAnnotations 
-                              ? 'bg-[var(--theme-500)] text-white' 
-                              : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                          }`}
-                      >
-                          Chú thích tiếng Việt
-                      </button>
-                      
-                      <div className="relative" ref={downloadMenuRef}>
-                        <button
-                          onClick={() => setIsDownloadMenuOpen(prev => !prev)}
+                       <button
+                          onClick={handleTranslate}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
-                          title="Tải kịch bản"
-                        >
-                          <ArrowDownTrayIcon className="w-4 h-4" />
-                        </button>
-                        {isDownloadMenuOpen && (
-                          <div className="absolute top-full right-0 mt-2 w-max bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 p-1">
-                            <ul>
-                              <li>
-                                <button
-                                  onClick={() => handleDownload(true)}
-                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
-                                >
-                                  Tải về (Có chú thích)
-                                </button>
-                              </li>
-                              <li>
-                                <button
-                                  onClick={() => handleDownload(false)}
-                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
-                                >
-                                  Tải về (Không chú thích)
-                                </button>
-                              </li>
-                            </ul>
-                          </div>
-                        )}
-                      </div>
+                          title="Dịch sang tiếng Việt"
+                      >
+                         <LanguageIcon className="w-4 h-4" />
+                          <span>Dịch</span>
+                      </button>
+
+                       <button
+                          onClick={handleDownload}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
+                          title="Tải kịch bản (.txt)"
+                      >
+                         <ArrowDownTrayIcon className="w-4 h-4" />
+                      </button>
 
                        <button
                           onClick={handleCopy}
@@ -253,8 +176,9 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyT
                   </div>
               )}
             </div>
-            {script ? <FormattedScript text={script} showAnnotations={showAnnotations} /> : <p>Đang tạo kịch bản của bạn...</p>}
+            {script ? <FormattedScript text={script} /> : <p>Đang tạo kịch bản của bạn...</p>}
         </div>
+        </>
     );
 };
 

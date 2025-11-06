@@ -1,5 +1,5 @@
 import type { Story, ScenePrompt, ApiKeyStore } from '../types';
-import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2And3Prompt, getStep4PromptOpenAI } from '../constants';
+import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2And3Prompt, getStep4PromptOpenAI, ROLE_PROMPT_NO_TRANSLATION } from '../constants';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
@@ -99,7 +99,7 @@ export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string
 export const expandStoryAndCreateCast = async (storyContent: string, model: string): Promise<string> => {
     const prompt = getStep2And3Prompt(storyContent);
     const messages = [
-        { role: 'system', content: ROLE_PROMPT },
+        { role: 'system', content: ROLE_PROMPT_NO_TRANSLATION },
         { role: 'user', content: prompt }
     ];
     return await callOpenAI(messages, model);
@@ -108,7 +108,7 @@ export const expandStoryAndCreateCast = async (storyContent: string, model: stri
 export const generateVisualPrompts = async (script: string, model: string): Promise<ScenePrompt[]> => {
     const prompt = getStep4PromptOpenAI(script);
     const messages = [
-        { role: 'system', content: ROLE_PROMPT },
+        { role: 'system', content: ROLE_PROMPT_NO_TRANSLATION },
         { role: 'user', content: prompt }
     ];
 
@@ -120,4 +120,32 @@ export const generateVisualPrompts = async (script: string, model: string): Prom
         throw new Error("Invalid JSON structure received from OpenAI. Expected a 'scenes' array.");
     }
     return result.scenes;
+};
+
+export const translateText = async (text: string, model: string): Promise<string> => {
+    const prompt = `Translate the following English text to Vietnamese. Maintain the original formatting, including markdown and line breaks. Do not add any extra explanations or introductions. The text to translate is:\n\n---\n\n${text}`;
+    const messages = [
+        { role: 'system', content: "You are a helpful translation assistant." },
+        { role: 'user', content: prompt }
+    ];
+    // Use a lower temperature for more predictable translations
+    const apiKey = getOpenAiApiKey();
+    if (!apiKey) {
+        throw new Error("OpenAI API Key chưa được kích hoạt.");
+    }
+    const body = { model, messages, temperature: 0.2 };
+    const response = await fetch(OPENAI_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`OpenAI translation failed: ${errorData.error.message}`);
+    }
+    const data = await response.json();
+    return data.choices[0].message.content;
 };

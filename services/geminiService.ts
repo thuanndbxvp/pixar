@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Story, ScenePrompt, ApiKeyStore } from '../types';
-import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2And3Prompt, getStep4Prompt } from '../constants';
+import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2And3Prompt, getStep4Prompt, ROLE_PROMPT_NO_TRANSLATION } from '../constants';
 
 const getGeminiApiKey = (): string | null => {
     const storeStr = localStorage.getItem('apiKeyStore');
@@ -105,7 +105,7 @@ export const expandStoryAndCreateCast = async (storyContent: string, model: stri
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
              config: {
-                systemInstruction: ROLE_PROMPT,
+                systemInstruction: ROLE_PROMPT_NO_TRANSLATION,
                 temperature: 0.7,
             }
         });
@@ -127,7 +127,7 @@ export const generateVisualPrompts = async (script: string, model: string): Prom
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
             config: {
-                systemInstruction: ROLE_PROMPT,
+                systemInstruction: ROLE_PROMPT_NO_TRANSLATION,
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.ARRAY,
@@ -155,5 +155,26 @@ export const generateVisualPrompts = async (script: string, model: string): Prom
              throw new Error(`Failed to communicate with Gemini API or parse its JSON response: ${error.message}`);
         }
         throw new Error("Failed to communicate with Gemini API or parse its JSON response.");
+    }
+};
+
+export const translateText = async (text: string, model: string): Promise<string> => {
+    try {
+        const ai = getAiClient();
+        const prompt = `Translate the following English text to Vietnamese. Maintain the original formatting, including markdown and line breaks. Do not add any extra explanations or introductions. The text to translate is:\n\n---\n\n${text}`;
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: [{ parts: [{ text: prompt }] }],
+            config: {
+                temperature: 0.2,
+            }
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error translating text with Gemini:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to translate with Gemini API: ${error.message}`);
+        }
+        throw new Error("Failed to translate with Gemini API.");
     }
 };

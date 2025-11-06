@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { ScenePrompt } from '../types';
-import { ClipboardDocumentIcon, CheckIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import type { ScenePrompt, AIConfig } from '../types';
+import * as geminiService from '../services/geminiService';
+import * as openaiService from '../services/openaiService';
+import { ClipboardDocumentIcon, CheckIcon, ArrowDownTrayIcon, LanguageIcon } from '@heroicons/react/24/outline';
+import TranslationModal from './TranslationModal';
 
 interface PromptDisplayProps {
   prompts: ScenePrompt[];
   isLoading: boolean;
   storyTitle: string | null;
+  aiConfig: AIConfig | null;
 }
 
 const CopyButton: React.FC<{ textToCopy: string }> = ({ textToCopy }) => {
@@ -24,40 +28,13 @@ const CopyButton: React.FC<{ textToCopy: string }> = ({ textToCopy }) => {
     );
 };
 
-// This parser separates the main English text from the Vietnamese annotations in parentheses.
-const parseAnnotatedText = (text: string): { main: string; annotation: string } => {
-    if (!text) return { main: '', annotation: '' };
-
-    const mainLines: string[] = [];
-    const annotationLines: string[] = [];
-
-    text.split('\n').forEach(line => {
-        const annotationRegex = /\s*\(([^)]+)\)([:.]*)$/;
-        const match = line.match(annotationRegex);
-        if (match) {
-            // Main part of the line (text before the annotation)
-            const mainPart = (line.substring(0, match.index) + (match[2] || '')).trimEnd();
-            if (mainPart) {
-                mainLines.push(mainPart);
-            }
-            // The annotation part
-            annotationLines.push(match[1]);
-        } else {
-            mainLines.push(line);
-        }
-    });
-
-    return {
-        main: mainLines.join('\n').trim(),
-        annotation: annotationLines.join('\n').trim(),
-    };
-};
-
-
-const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, storyTitle }) => {
-    const [showAnnotations, setShowAnnotations] = useState(false);
+const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, storyTitle, aiConfig }) => {
     const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
     const downloadMenuRef = useRef<HTMLDivElement>(null);
+    const [isTranslating, setIsTranslating] = useState(false);
+    const [translation, setTranslation] = useState<string | null>(null);
+    const [translationError, setTranslationError] = useState<string | null>(null);
+    const [isTranslationModalOpen, setIsTranslationModalOpen] = useState(false);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -75,63 +52,12 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         return null;
     }
 
-    const handleDownloadCsv = () => {
-        if (prompts.length === 0) return;
-
-        const DELIMITER = ';';
-
-        const escapeCsvField = (field: string): string => {
-            if (typeof field !== 'string') return '';
-            let result = field.replace(/"/g, '""');
-            if (result.includes(DELIMITER) || result.includes('\n') || result.includes('"')) {
-                result = `"${result}"`;
-            }
-            return result;
-        };
-
-        const headers = ['Mô tả cảnh', 'Chú thích Tiếng Việt', 'Prompt IMG', 'Chú thích prompt IMG', 'Prompt Video', 'Chú thích prompt video'];
-        const csvRows = [headers.join(DELIMITER)];
-
-        prompts.forEach(p => {
-            const { main: sceneMainText, annotation: sceneAnnotation } = parseAnnotatedText(p.scene_text);
-            const { main: imagePromptMain, annotation: imagePromptAnnotation } = parseAnnotatedText(p.image_prompt);
-            const { main: videoPromptMain, annotation: videoPromptAnnotation } = parseAnnotatedText(p.video_prompt);
-
-            const row = [
-                escapeCsvField(sceneMainText),
-                escapeCsvField(sceneAnnotation || ''),
-                escapeCsvField(imagePromptMain),
-                escapeCsvField(imagePromptAnnotation || ''),
-                escapeCsvField(videoPromptMain),
-                escapeCsvField(videoPromptAnnotation || '')
-            ];
-            csvRows.push(row.join(DELIMITER));
-        });
-
-        const csvString = '\uFEFF' + csvRows.join('\n');
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        
-        const cleanTitle = storyTitle ? storyTitle.split('(')[0].trim() : 'prompts';
-        const filenameBase = cleanTitle.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-        link.setAttribute('download', `pixar_prompts_${filenameBase}.csv`);
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        setIsDownloadMenuOpen(false);
-    };
-
     const handleDownloadPrompts = (type: 'image' | 'video') => {
         if (prompts.length === 0) return;
 
         const promptsToDownload = prompts.map(p => {
             const promptText = type === 'image' ? p.image_prompt : p.video_prompt;
-            const { main } = parseAnnotatedText(promptText);
-            return `--- SCENE ${p.scene_number} ---\n${main}`;
+            return `--- SCENE ${p.scene_number} ---\n${promptText}`;
         }).join('\n\n');
         
         const blob = new Blob([promptsToDownload], { type: 'text/plain;charset=utf-8' });
@@ -152,22 +78,53 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         setIsDownloadMenuOpen(false);
     };
 
+    const formatPromptsForTranslation = (): string => {
+      return prompts.map(p => 
+        `--- Cảnh ${p.scene_number} ---\n\nMô tả cảnh:\n${p.scene_text}\n\nGợi ý Hình ảnh (9:16):\n${p.image_prompt}\n\nGợi ý Video (9:16):\n${p.video_prompt}`
+      ).join('\n\n');
+    };
+
+    const handleTranslate = async () => {
+        if (prompts.length === 0 || !aiConfig) return;
+        setIsTranslationModalOpen(true);
+        setIsTranslating(true);
+        setTranslation(null);
+        setTranslationError(null);
+        try {
+            const textToTranslate = formatPromptsForTranslation();
+            const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+            const result = await service.translateText(textToTranslate, aiConfig.model);
+            setTranslation(result);
+        } catch (err: any) {
+            setTranslationError(`Không thể dịch các gợi ý: ${err.message}`);
+        } finally {
+            setIsTranslating(false);
+        }
+    };
+
   return (
+    <>
+    <TranslationModal
+        isOpen={isTranslationModalOpen}
+        onClose={() => setIsTranslationModalOpen(false)}
+        title="Bản dịch Gợi ý"
+        isLoading={isTranslating}
+        translation={translation}
+        error={translationError}
+    />
     <div>
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
             <h2 className="text-2xl font-semibold text-[var(--theme-400)]">Gợi ý Hình ảnh</h2>
             {prompts.length > 0 && (
                 <div className="flex items-center gap-2">
-                     <button
-                        onClick={() => setShowAnnotations(!showAnnotations)}
-                        className={`px-3 py-1.5 text-sm rounded-md transition-colors font-medium ${
-                        showAnnotations 
-                            ? 'bg-[var(--theme-500)] text-white' 
-                            : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                        }`}
-                    >
-                        Chú thích tiếng Việt
-                    </button>
+                    <button
+                          onClick={handleTranslate}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
+                          title="Dịch sang tiếng Việt"
+                      >
+                         <LanguageIcon className="w-4 h-4" />
+                         <span>Dịch</span>
+                      </button>
                     <div className="relative" ref={downloadMenuRef}>
                         <button
                           onClick={() => setIsDownloadMenuOpen(prev => !prev)}
@@ -180,14 +137,6 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                         {isDownloadMenuOpen && (
                           <div className="absolute top-full right-0 mt-2 w-max bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 p-1">
                             <ul>
-                              <li>
-                                <button
-                                  onClick={handleDownloadCsv}
-                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
-                                >
-                                  Tải về Excel (CSV)
-                                </button>
-                              </li>
                               <li>
                                 <button
                                   onClick={() => handleDownloadPrompts('image')}
@@ -212,12 +161,7 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
             )}
         </div>
       <div className="space-y-8">
-        {prompts.map((p) => {
-          const { main: sceneMainText, annotation: sceneAnnotation } = parseAnnotatedText(p.scene_text);
-          const { main: imagePromptMain, annotation: imagePromptAnnotation } = parseAnnotatedText(p.image_prompt);
-          const { main: videoPromptMain, annotation: videoPromptAnnotation } = parseAnnotatedText(p.video_prompt);
-          
-          return (
+        {prompts.map((p) => (
               <div key={p.scene_number} className="bg-gray-800/70 p-5 rounded-lg border border-gray-700">
                 <h3 className="text-xl font-bold text-[var(--theme-400)] mb-4">Cảnh {p.scene_number}</h3>
                 
@@ -225,48 +169,33 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                     <div>
                         <h4 className="font-semibold text-gray-200 mb-2">Mô tả cảnh</h4>
                         <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md">
-                            <p className="whitespace-pre-wrap">{sceneMainText}</p>
-                            {showAnnotations && sceneAnnotation && (
-                                <div className="mt-2 pt-2 border-t border-gray-700/50">
-                                    <p className="italic text-[var(--theme-400)] opacity-95 whitespace-pre-wrap">{sceneAnnotation}</p>
-                                </div>
-                            )}
+                            <p className="whitespace-pre-wrap">{p.scene_text}</p>
                         </div>
                     </div>
                      <div>
                         <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Hình ảnh (9:16)</h4>
                         <div className="relative">
                             <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
-                               <p className="whitespace-pre-wrap">{imagePromptMain}</p>
-                                {showAnnotations && imagePromptAnnotation && (
-                                    <div className="mt-2 pt-2 border-t border-gray-700/50">
-                                        <p className="italic text-[var(--theme-400)] opacity-95 whitespace-pre-wrap">{imagePromptAnnotation}</p>
-                                    </div>
-                                )}
+                               <p className="whitespace-pre-wrap">{p.image_prompt}</p>
                             </div>
-                            <CopyButton textToCopy={imagePromptMain} />
+                            <CopyButton textToCopy={p.image_prompt} />
                         </div>
                     </div>
                     <div>
                         <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Video (9:16)</h4>
                         <div className="relative">
                              <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
-                               <p className="whitespace-pre-wrap">{videoPromptMain}</p>
-                                {showAnnotations && videoPromptAnnotation && (
-                                    <div className="mt-2 pt-2 border-t border-gray-700/50">
-                                        <p className="italic text-[var(--theme-400)] opacity-95 whitespace-pre-wrap">{videoPromptAnnotation}</p>
-                                    </div>
-                                )}
+                               <p className="whitespace-pre-wrap">{p.video_prompt}</p>
                             </div>
-                            <CopyButton textToCopy={videoPromptMain} />
+                            <CopyButton textToCopy={p.video_prompt} />
                         </div>
                     </div>
                 </div>
               </div>
-          );
-        })}
+          ))}
       </div>
     </div>
+    </>
   );
 };
 

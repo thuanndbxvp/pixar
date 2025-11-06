@@ -316,7 +316,7 @@ const App: React.FC = () => {
               )}
               
               {(step === Step.SCRIPT_GENERATION || step === Step.SCRIPT_GENERATED) && (
-                 <ScriptDisplay script={script} isLoading={isLoading} storyTitle={selectedStory?.title || null} />
+                 <ScriptDisplay script={script} isLoading={isLoading} storyTitle={selectedStory?.title || null} aiConfig={aiConfig} />
               )}
               
               {step === Step.SCRIPT_GENERATED && (
@@ -326,7 +326,7 @@ const App: React.FC = () => {
               )}
 
               {(step === Step.PROMPT_GENERATION || step === Step.PROMPTS_GENERATED) && (
-                 <PromptDisplay prompts={prompts} isLoading={isLoading} storyTitle={selectedStory?.title || null} />
+                 <PromptDisplay prompts={prompts} isLoading={isLoading} storyTitle={selectedStory?.title || null} aiConfig={aiConfig} />
               )}
 
               {step === Step.PROMPTS_GENERATED && (

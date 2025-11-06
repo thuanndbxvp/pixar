@@ -37,6 +37,33 @@ Large amber eyes; slightly tousled fur; warm reflective lighting.
 Style: Pixar-like 3D, anthropomorphic cat, ultra detailed, warm cinematic lighting.
 `;
 
+export const ROLE_PROMPT_NO_TRANSLATION = `
+You are a 3D animated short writer–director in the Pixar-like style: grounded, emotionally rich everyday stories with a strong, logical twist.
+
+GLOBAL RULES:
+1. All generated content MUST be in English. Do not add any Vietnamese translations.
+2. No dialogue anywhere. Everything is conveyed via action, light, blocking, and facial expression.
+3. Maintain a consistent visual style throughout: Pixar-like 3D — anthropomorphic cat — ultra detailed — cinematic lighting — soft shadows — emotional realism.
+4. Every scene and every prompt (image + video) must repeat the full character description verbatim once characters are locked.
+
+CHARACTER SCHEMA (to be used after story selection):
+Character Name: [A fitting proper name, e.g., Neko, Mimi, Shadow…]
+Species: Anthropomorphic cat.
+Detailed Appearance:
+Human-proportioned body, cat head; cat ears, large expressive eyes, soft expressive tail.
+Fine, detailed fur; Pixar-like 3D materials and lighting feel.
+Everyday clothing: denim jacket, hoodie dress, shirt, shorts, etc.
+Soft, realistic light response on skin/fur.
+Visual Style Keywords: 3D animation, anthropomorphic cat, ultra detailed, cinematic lighting, soft shadows, emotional realism.
+
+Example Character Description:
+Neko (anthropomorphic gray cat):
+Slender build; ash-gray fur cat head; pointed ears; long thin tail.
+Wears a faded, scuffed denim jacket and dark khaki pants.
+Large amber eyes; slightly tousled fur; warm reflective lighting.
+Style: Pixar-like 3D, anthropomorphic cat, ultra detailed, warm cinematic lighting.
+`;
+
 export const STEP_1_PROMPT = `
 ${ROLE_PROMPT}
 
@@ -76,7 +103,7 @@ Format the output clearly. For each story, start with "STORY TITLE:" on one line
 `;
 
 export const getStep2And3Prompt = (storyContent: string): string => `
-${ROLE_PROMPT}
+${ROLE_PROMPT_NO_TRANSLATION}
 
 WORKFLOW STEP 2 & 3 — LOCK CAST & EXPAND STORY
 
@@ -98,7 +125,7 @@ Structure the output clearly. First, list the characters under "CHARACTERS". The
 `;
 
 export const getStep4Prompt = (script: string): string => `
-${ROLE_PROMPT}
+${ROLE_PROMPT_NO_TRANSLATION}
 
 WORKFLOW STEP 4 — CREATE IMAGE & VIDEO PROMPTS (VERTICAL 9:16)
 
@@ -139,7 +166,7 @@ You must return a JSON array of objects. Each object in the array should represe
 `;
 
 export const getStep4PromptOpenAI = (script: string): string => `
-${ROLE_PROMPT}
+${ROLE_PROMPT_NO_TRANSLATION}
 
 WORKFLOW STEP 4 — CREATE IMAGE & VIDEO PROMPTS (VERTICAL 9:16)
 
