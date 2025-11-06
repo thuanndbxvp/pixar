@@ -156,13 +156,22 @@ const App: React.FC = () => {
                   <span>Quản lý API</span>
               </button>
            </div>
-          <div className="flex items-center justify-center gap-3">
-            <FilmIcon className="h-10 w-10 text-[var(--theme-400)]"/>
-            <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-[var(--theme-400)] to-purple-500 text-transparent bg-clip-text">
-              Trợ lý Sáng tạo Phim hoạt hình
-            </h1>
+          <div 
+            onClick={handleReset}
+            className="inline-block cursor-pointer group"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleReset(); } }}
+            aria-label="Bắt đầu lại dự án"
+          >
+            <div className="flex items-center justify-center gap-3 group-hover:opacity-80 transition-opacity duration-300">
+              <FilmIcon className="h-10 w-10 text-[var(--theme-400)]"/>
+              <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-[var(--theme-400)] to-purple-500 text-transparent bg-clip-text">
+                Trợ lý Sáng tạo Phim hoạt hình
+              </h1>
+            </div>
           </div>
-          <p className="mt-2 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn theo phong cách Pixar.</p>
+          <p className="mt-2.5 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn theo phong cách Pixar.</p>
         </header>
 
         <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} onSave={handleApiModalSave} />
