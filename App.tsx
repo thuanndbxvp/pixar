@@ -326,7 +326,7 @@ const App: React.FC = () => {
               )}
 
               {(step === Step.PROMPT_GENERATION || step === Step.PROMPTS_GENERATED) && (
-                 <PromptDisplay prompts={prompts} isLoading={isLoading} />
+                 <PromptDisplay prompts={prompts} isLoading={isLoading} storyTitle={selectedStory?.title || null} />
               )}
 
               {step === Step.PROMPTS_GENERATED && (
