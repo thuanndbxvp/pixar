@@ -44,7 +44,6 @@ const App: React.FC = () => {
       };
       setAiConfig(defaultConfig);
       localStorage.setItem('aiConfig', JSON.stringify(defaultConfig));
-      setIsApiModalOpen(true); // Prompt user to set API key on first visit
     }
   }, []);
 
@@ -203,6 +202,17 @@ const App: React.FC = () => {
     setIsLoading(false);
     setIsLibraryModalOpen(false); // Close modal on load
   };
+
+  const handleStepNavigation = (stepIndex: number) => {
+    // Prevent navigation if data for that step doesn't exist
+    if (stepIndex === 0 && stories.length > 0) {
+        setStep(Step.STORY_SELECTION);
+    } else if (stepIndex === 1 && script) {
+        setStep(Step.SCRIPT_GENERATED);
+    } else if (stepIndex === 2 && prompts.length > 0) {
+        setStep(Step.PROMPTS_GENERATED);
+    }
+  };
   
   const currentTheme = themeColors[theme];
   const appStyle = {
@@ -273,7 +283,15 @@ const App: React.FC = () => {
         <LibraryModal isOpen={isLibraryModalOpen} onClose={() => setIsLibraryModalOpen(false)} onLoadSession={handleLoadSession} />
 
         <main className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-black/30 p-6 ring-1 ring-white/10">
-          <StepIndicator currentStep={step} />
+          <StepIndicator 
+            currentStep={step} 
+            onStepClick={handleStepNavigation}
+            canNavigateTo={[
+                stories.length > 0,
+                !!script,
+                prompts.length > 0,
+            ]}
+           />
 
           {error && <div className="bg-red-500/20 text-red-300 p-3 rounded-lg my-4 ring-1 ring-red-500/30">{error}</div>}
 
