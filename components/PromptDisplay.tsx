@@ -59,15 +59,43 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         return null;
     }
 
-    const handleDownloadPrompts = (type: 'image' | 'video') => {
+    const handleDownloadCsv = (type: 'all' | 'image' | 'video') => {
         if (prompts.length === 0) return;
 
-        const promptsToDownload = prompts.map(p => {
-            const promptText = type === 'image' ? p.image_prompt : p.video_prompt;
-            return `--- SCENE ${p.scene_number} ---\n${promptText}`;
-        }).join('\n\n');
-        
-        const blob = new Blob([promptsToDownload], { type: 'text/plain;charset=utf-8' });
+        const escapeCsvCell = (cell: string | number): string => {
+            const str = String(cell).trim();
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        let headers: string[];
+        let dataRows: (string | number)[][];
+
+        switch (type) {
+            case 'all':
+                headers = ['Scene Description', 'Image Prompt', 'Video Prompt'];
+                dataRows = prompts.map(p => [p.scene_text, p.image_prompt, p.video_prompt]);
+                break;
+            case 'image':
+                headers = ['Image Prompt'];
+                dataRows = prompts.map(p => [p.image_prompt]);
+                break;
+            case 'video':
+                headers = ['Video Prompt'];
+                dataRows = prompts.map(p => [p.video_prompt]);
+                break;
+        }
+
+        const csvRows = [
+            headers.join(','),
+            ...dataRows.map(row => row.map(escapeCsvCell).join(','))
+        ];
+        const csvContent = csvRows.join('\n');
+
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -75,8 +103,13 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         const cleanTitle = storyTitle ? storyTitle.split('(')[0].trim() : 'prompts';
         const filenameBase = cleanTitle.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
 
-        const promptType = type === 'image' ? 'image_prompts' : 'video_prompts';
-        link.download = `pixar_${promptType}_${filenameBase}.txt`;
+        const fileTypeMap = {
+            all: 'all_prompts',
+            image: 'image_prompts',
+            video: 'video_prompts'
+        };
+
+        link.download = `pixar_${fileTypeMap[type]}_${filenameBase}.csv`;
         
         document.body.appendChild(link);
         link.click();
@@ -149,18 +182,26 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                             <ul>
                               <li>
                                 <button
-                                  onClick={() => handleDownloadPrompts('image')}
+                                  onClick={() => handleDownloadCsv('all')}
                                   className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
                                 >
-                                  Tải về Prompt Ảnh (.txt)
+                                  Tải Excel (Đầy đủ)
                                 </button>
                               </li>
                               <li>
                                 <button
-                                  onClick={() => handleDownloadPrompts('video')}
+                                  onClick={() => handleDownloadCsv('image')}
                                   className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
                                 >
-                                  Tải về Prompt Video (.txt)
+                                  Tải Excel (Chỉ Ảnh)
+                                </button>
+                              </li>
+                              <li>
+                                <button
+                                  onClick={() => handleDownloadCsv('video')}
+                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
+                                >
+                                  Tải Excel (Chỉ Video)
                                 </button>
                               </li>
                             </ul>

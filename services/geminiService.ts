@@ -97,10 +97,10 @@ export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string
     }
 };
 
-export const expandStoryAndCreateCast = async (storyContent: string, model: string): Promise<string> => {
+export const expandStoryAndCreateCast = async (storyContent: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
     try {
         const ai = getAiClient();
-        const prompt = getStep2And3Prompt(storyContent);
+        const prompt = getStep2And3Prompt(storyContent, aspectRatio);
         const response = await ai.models.generateContent({
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
@@ -119,10 +119,10 @@ export const expandStoryAndCreateCast = async (storyContent: string, model: stri
     }
 };
 
-export const generateVisualPrompts = async (script: string, model: string): Promise<ScenePrompt[]> => {
+export const generateVisualPrompts = async (script: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<ScenePrompt[]> => {
     try {
         const ai = getAiClient();
-        const prompt = getStep4Prompt(script);
+        const prompt = getStep4Prompt(script, aspectRatio);
         const response = await ai.models.generateContent({
             model: model,
             contents: [{ parts: [{ text: prompt }] }],

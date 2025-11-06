@@ -96,8 +96,8 @@ export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string
     return parseStoriesOpenAI(responseText);
 };
 
-export const expandStoryAndCreateCast = async (storyContent: string, model: string): Promise<string> => {
-    const prompt = getStep2And3Prompt(storyContent);
+export const expandStoryAndCreateCast = async (storyContent: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
+    const prompt = getStep2And3Prompt(storyContent, aspectRatio);
     const messages = [
         { role: 'system', content: ROLE_PROMPT_NO_TRANSLATION },
         { role: 'user', content: prompt }
@@ -105,8 +105,8 @@ export const expandStoryAndCreateCast = async (storyContent: string, model: stri
     return await callOpenAI(messages, model);
 };
 
-export const generateVisualPrompts = async (script: string, model: string): Promise<ScenePrompt[]> => {
-    const prompt = getStep4PromptOpenAI(script);
+export const generateVisualPrompts = async (script: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<ScenePrompt[]> => {
+    const prompt = getStep4PromptOpenAI(script, aspectRatio);
     const messages = [
         { role: 'system', content: ROLE_PROMPT_NO_TRANSLATION },
         { role: 'user', content: prompt }
