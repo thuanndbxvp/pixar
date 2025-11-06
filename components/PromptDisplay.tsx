@@ -70,30 +70,31 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
             return str;
         };
 
-        let headers: string[];
-        let dataRows: (string | number)[][];
+        let csvContent: string;
 
         switch (type) {
-            case 'all':
-                headers = ['Scene Description', 'Image Prompt', 'Video Prompt'];
-                dataRows = prompts.map(p => [p.scene_text, p.image_prompt, p.video_prompt]);
+            case 'all': {
+                const headers = ['Scene Number', 'Scene Description', 'Image Prompt', 'Video Prompt'];
+                const dataRows = prompts.map(p => [p.scene_number, p.scene_text, p.image_prompt, p.video_prompt]);
+                const csvRows = [
+                    headers.join(','),
+                    ...dataRows.map(row => row.map(escapeCsvCell).join(','))
+                ];
+                csvContent = csvRows.join('\n');
                 break;
-            case 'image':
-                headers = ['Image Prompt'];
-                dataRows = prompts.map(p => [p.image_prompt]);
+            }
+            case 'image': {
+                const dataRows = prompts.map(p => [p.image_prompt]);
+                csvContent = dataRows.map(row => row.map(escapeCsvCell).join(',')).join('\n');
                 break;
-            case 'video':
-                headers = ['Video Prompt'];
-                dataRows = prompts.map(p => [p.video_prompt]);
+            }
+            case 'video': {
+                const dataRows = prompts.map(p => [p.video_prompt]);
+                csvContent = dataRows.map(row => row.map(escapeCsvCell).join(',')).join('\n');
                 break;
+            }
         }
-
-        const csvRows = [
-            headers.join(','),
-            ...dataRows.map(row => row.map(escapeCsvCell).join(','))
-        ];
-        const csvContent = csvRows.join('\n');
-
+        
         const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
         const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -120,7 +121,7 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
 
     const formatPromptsForTranslation = (): string => {
       return prompts.map(p => 
-        `--- Cảnh ${p.scene_number} ---\n\nMô tả cảnh:\n${p.scene_text}\n\nGợi ý Hình ảnh (9:16):\n${p.image_prompt}\n\nGợi ý Video (9:16):\n${p.video_prompt}`
+        `--- Cảnh ${p.scene_number} ---\n\nMô tả cảnh:\n${p.scene_text}\n\nGợi ý Hình ảnh:\n${p.image_prompt}\n\nGợi ý Video:\n${p.video_prompt}`
       ).join('\n\n');
     };
 
@@ -224,7 +225,7 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                         </div>
                     </div>
                      <div>
-                        <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Hình ảnh (9:16)</h4>
+                        <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Hình ảnh</h4>
                         <div className="relative">
                             <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
                                <p className="whitespace-pre-wrap">{p.image_prompt}</p>
@@ -233,7 +234,7 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                         </div>
                     </div>
                     <div>
-                        <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Video (9:16)</h4>
+                        <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Video</h4>
                         <div className="relative">
                              <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
                                <p className="whitespace-pre-wrap">{p.video_prompt}</p>
