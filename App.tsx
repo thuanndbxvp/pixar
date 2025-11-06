@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import * as geminiService from './services/geminiService';
 import * as openaiService from './services/openaiService';
-import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig } from './types';
+import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig, Session } from './types';
 import { Step } from './types';
 import { themeColors } from './themes';
 import StorySelection from './components/StorySelection';
@@ -11,8 +11,9 @@ import StepIndicator from './components/StepIndicator';
 import LoadingSpinner from './components/LoadingSpinner';
 import ActionButton from './components/ActionButton';
 import ApiKeyModal from './components/ApiKeyModal';
+import LibraryModal from './components/LibraryModal';
 import ThemePicker from './components/ThemePicker';
-import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon } from '@heroicons/react/24/solid';
+import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon, BookmarkSquareIcon, FolderOpenIcon } from '@heroicons/react/24/solid';
 import { AI_MODELS } from './constants';
 
 const App: React.FC = () => {
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [userIdea, setUserIdea] = useState<string>('');
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+  const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
   const [theme, setTheme] = useState<ThemeName>('sky');
 
@@ -136,6 +138,44 @@ const App: React.FC = () => {
     setError(null);
     setUserIdea('');
   };
+
+  const handleSaveSession = () => {
+    const sessionName = prompt("Nhập tên cho phiên làm việc của bạn:", `Phiên làm việc ngày ${new Date().toLocaleDateString()}`);
+    if (!sessionName || !sessionName.trim()) {
+        return; // User cancelled or entered empty name
+    }
+
+    const currentState = {
+        step, stories, selectedStory, script, prompts, userIdea, aiConfig, theme
+    };
+
+    const newSession: Session = {
+        id: crypto.randomUUID(),
+        name: sessionName.trim(),
+        createdAt: new Date().toISOString(),
+        state: currentState
+    };
+
+    const existingSessions: Session[] = JSON.parse(localStorage.getItem('animationStudioSessions') || '[]');
+    const updatedSessions = [newSession, ...existingSessions];
+    localStorage.setItem('animationStudioSessions', JSON.stringify(updatedSessions));
+    alert(`Đã lưu phiên làm việc "${sessionName.trim()}"!`);
+  };
+
+  const handleLoadSession = (session: Session) => {
+    const s = session.state;
+    setStep(s.step);
+    setStories(s.stories);
+    setSelectedStory(s.selectedStory);
+    setScript(s.script);
+    setPrompts(s.prompts);
+    setUserIdea(s.userIdea);
+    setAiConfig(s.aiConfig);
+    setTheme(s.theme);
+    setError(null);
+    setIsLoading(false);
+    setIsLibraryModalOpen(false); // Close modal on load
+  };
   
   const currentTheme = themeColors[theme];
   const appStyle = {
@@ -151,6 +191,14 @@ const App: React.FC = () => {
         <header className="text-center mb-8">
             <div className="absolute top-0 right-0 flex items-center gap-2 z-10">
                <ThemePicker selectedTheme={theme} onThemeChange={setTheme} />
+                <button onClick={handleSaveSession} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
+                  <BookmarkSquareIcon className="w-5 h-5"/>
+                  <span>Lưu Phiên</span>
+                </button>
+                 <button onClick={() => setIsLibraryModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
+                  <FolderOpenIcon className="w-5 h-5"/>
+                  <span>Thư viện</span>
+                </button>
                <button onClick={() => setIsApiModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                   <KeyIcon className="w-5 h-5"/>
                   <span>Quản lý API</span>
@@ -171,10 +219,11 @@ const App: React.FC = () => {
               </h1>
             </div>
           </div>
-          <p className="mt-2.5 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn theo phong cách Pixar.</p>
+          <p className="mt-4 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn theo phong cách Pixar.</p>
         </header>
 
         <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} onSave={handleApiModalSave} />
+        <LibraryModal isOpen={isLibraryModalOpen} onClose={() => setIsLibraryModalOpen(false)} onLoadSession={handleLoadSession} />
 
         <main className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-black/30 p-6 ring-1 ring-white/10">
           <StepIndicator currentStep={step} />

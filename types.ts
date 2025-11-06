@@ -51,3 +51,19 @@ export interface ApiKeyStore {
   gemini: ApiKeyProviderStore;
   openai: ApiKeyProviderStore;
 }
+
+export interface Session {
+  id: string;
+  name: string;
+  createdAt: string; // ISO string
+  state: {
+    step: AppStep;
+    stories: Story[];
+    selectedStory: Story | null;
+    script: string;
+    prompts: ScenePrompt[];
+    userIdea: string;
+    aiConfig: AIConfig | null;
+    theme: ThemeName;
+  };
+}
