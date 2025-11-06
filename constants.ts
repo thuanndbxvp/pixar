@@ -104,3 +104,44 @@ You must return a JSON array of objects. Each object in the array should represe
   "video_prompt": "The generated video prompt"
 }
 `;
+
+export const getStep4PromptOpenAI = (script: string): string => `
+${ROLE_PROMPT}
+
+WORKFLOW STEP 4 — CREATE IMAGE & VIDEO PROMPTS (VERTICAL 9:16)
+
+Based on the following script, produce prompts for each scene.
+
+SCRIPT:
+---
+${script}
+---
+
+Follow these rules exactly for image and video prompts.
+
+Image Prompt Rules:
+- Format: 9:16 vertical.
+- Style: Pixar-like 3D, anthropomorphic cat — human body, cat head, ears, tail.
+- Materials: ultra detailed, cinematic soft lighting, emotional realism.
+- Background: lively urban or indoor spaces (streets, beach, gym, restaurant, classroom, bedroom, café…). May include neon signage, emissive lights, reflective glows, or cozy interiors.
+- Composition: cinematic depth; flexible mix of medium/close/wide.
+- Mood: authentic, nuanced, not showy.
+- IMPORTANT: Repeat the full fixed character description from the script every time characters appear in prompts.
+
+Video Prompt Rules (3–5 seconds):
+- Format: 9:16 vertical.
+- Style: Pixar-like 3D, anthropomorphic cat.
+- Smooth cinematic motion: Camera pans, slow zooms, gentle dolly in/out.
+- Micro-animation: subtle blinks, slight head turns, small bows, tail/hand slow movement, natural footsteps.
+- Lighting: soft, environment-aware; optional gentle flicker, sunlight shafts, or neon bleed.
+- Emotion: subtle, truthful, never exaggerated.
+- IMPORTANT: Repeat the full fixed character description from the script every time characters appear in prompts.
+
+You must return a single JSON object. Do not output any other text or markdown. The JSON object must have a single key named "scenes" which contains an array of objects. Each object in the array should represent a scene and have the following structure:
+{
+  "scene_number": number,
+  "scene_text": "The full original text of the scene from the script",
+  "image_prompt": "The generated image prompt",
+  "video_prompt": "The generated video prompt"
+}
+`;

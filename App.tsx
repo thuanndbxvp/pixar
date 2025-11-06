@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { generateStoryIdeas, expandStoryAndCreateCast, generateVisualPrompts } from './services/geminiService';
+import * as geminiService from './services/geminiService';
+import * as openaiService from './services/openaiService';
 import type { Story, AppStep, ScenePrompt } from './types';
 import { Step } from './types';
 import StorySelection from './components/StorySelection';
@@ -8,7 +9,8 @@ import PromptDisplay from './components/PromptDisplay';
 import StepIndicator from './components/StepIndicator';
 import LoadingSpinner from './components/LoadingSpinner';
 import ActionButton from './components/ActionButton';
-import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon } from '@heroicons/react/24/solid';
+import ApiKeyModal from './components/ApiKeyModal';
+import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon } from '@heroicons/react/24/solid';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(Step.IDEATION);
@@ -19,21 +21,24 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [userIdea, setUserIdea] = useState<string>('');
+  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
 
   const handleGenerateStories = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const generatedStories = await generateStoryIdeas();
+      const service = aiProvider === 'gemini' ? geminiService : openaiService;
+      const generatedStories = await service.generateStoryIdeas();
       setStories(generatedStories);
       setStep(Step.STORY_SELECTION);
-    } catch (err) {
-      setError('Không thể tạo ý tưởng câu chuyện. Vui lòng thử lại.');
+    } catch (err: any) {
+      setError(`Không thể tạo ý tưởng câu chuyện: ${err.message}. Vui lòng kiểm tra API key của bạn và thử lại.`);
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [aiProvider]);
 
   const handleDevelopUserIdea = useCallback(async () => {
     if (!userIdea.trim()) return;
@@ -42,18 +47,19 @@ const App: React.FC = () => {
     setError(null);
     setStep(Step.SCRIPT_GENERATION);
     try {
-      const expandedScript = await expandStoryAndCreateCast(userIdea);
+      const service = aiProvider === 'gemini' ? geminiService : openaiService;
+      const expandedScript = await service.expandStoryAndCreateCast(userIdea);
       setScript(expandedScript);
-      setSelectedStory({ id: 0, title: "Ý tưởng của người dùng", content: userIdea }); // Create a dummy story object for context
+      setSelectedStory({ id: 0, title: "Ý tưởng của người dùng", content: userIdea });
       setStep(Step.SCRIPT_GENERATED);
-    } catch (err) {
-      setError('Không thể phát triển ý tưởng của bạn. Vui lòng thử lại.');
+    } catch (err: any) {
+      setError(`Không thể phát triển ý tưởng của bạn: ${err.message}. Vui lòng kiểm tra API key của bạn và thử lại.`);
       console.error(err);
-      setStep(Step.IDEATION); // Go back to ideation on error
+      setStep(Step.IDEATION);
     } finally {
       setIsLoading(false);
     }
-  }, [userIdea]);
+  }, [userIdea, aiProvider]);
 
   const handleSelectStory = useCallback(async (story: Story) => {
     setSelectedStory(story);
@@ -61,16 +67,17 @@ const App: React.FC = () => {
     setError(null);
     setStep(Step.SCRIPT_GENERATION);
     try {
-      const expandedScript = await expandStoryAndCreateCast(story.content);
+      const service = aiProvider === 'gemini' ? geminiService : openaiService;
+      const expandedScript = await service.expandStoryAndCreateCast(story.content);
       setScript(expandedScript);
       setStep(Step.SCRIPT_GENERATED);
-    } catch (err) {
-      setError('Không thể phát triển câu chuyện. Vui lòng thử lại.');
+    } catch (err: any) {
+      setError(`Không thể phát triển câu chuyện: ${err.message}. Vui lòng kiểm tra API key của bạn và thử lại.`);
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [aiProvider]);
 
   const handleGeneratePrompts = useCallback(async () => {
     if (!script) return;
@@ -78,16 +85,17 @@ const App: React.FC = () => {
     setError(null);
     setStep(Step.PROMPT_GENERATION);
     try {
-      const visualPrompts = await generateVisualPrompts(script);
+      const service = aiProvider === 'gemini' ? geminiService : openaiService;
+      const visualPrompts = await service.generateVisualPrompts(script);
       setPrompts(visualPrompts);
       setStep(Step.PROMPTS_GENERATED);
-    } catch (err) {
-      setError('Không thể tạo gợi ý hình ảnh. Vui lòng thử lại.');
+    } catch (err: any) {
+      setError(`Không thể tạo gợi ý hình ảnh: ${err.message}. Vui lòng kiểm tra API key của bạn và thử lại.`);
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [script]);
+  }, [script, aiProvider]);
   
   const handleReset = () => {
     setStep(Step.IDEATION);
@@ -102,8 +110,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-5xl">
+      <div className="w-full max-w-5xl relative">
         <header className="text-center mb-8">
+           <button onClick={() => setIsApiModalOpen(true)} className="absolute top-0 right-0 flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors z-10">
+              <KeyIcon className="w-5 h-5"/>
+              <span>Quản lý API</span>
+          </button>
           <div className="flex items-center justify-center gap-3">
             <FilmIcon className="h-10 w-10 text-cyan-400"/>
             <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 text-transparent bg-clip-text">
@@ -112,6 +124,8 @@ const App: React.FC = () => {
           </div>
           <p className="mt-2 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn theo phong cách Pixar.</p>
         </header>
+
+        <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} />
 
         <main className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-black/30 p-6 ring-1 ring-white/10">
           <StepIndicator currentStep={step} />
@@ -124,6 +138,25 @@ const App: React.FC = () => {
             <>
               {step === Step.IDEATION && (
                 <div className="text-center">
+                    <div className="mb-8">
+                        <h3 className="text-lg font-semibold text-center mb-3 text-gray-300">1. Chọn Mô hình AI</h3>
+                        <div className="flex justify-center bg-gray-900 p-1 rounded-lg border border-gray-700 max-w-sm mx-auto">
+                            <button 
+                                onClick={() => setAiProvider('gemini')}
+                                className={`w-1/2 py-2 rounded-md transition-colors text-sm font-medium ${aiProvider === 'gemini' ? 'bg-cyan-500 text-white shadow' : 'text-gray-400 hover:bg-gray-700/50'}`}
+                            >
+                                Google Gemini
+                            </button>
+                            <button 
+                                onClick={() => setAiProvider('openai')}
+                                className={`w-1/2 py-2 rounded-md transition-colors text-sm font-medium ${aiProvider === 'openai' ? 'bg-cyan-500 text-white shadow' : 'text-gray-400 hover:bg-gray-700/50'}`}
+                            >
+                                OpenAI (ChatGPT)
+                            </button>
+                        </div>
+                    </div>
+
+                    <h3 className="text-lg font-semibold text-center mb-3 text-gray-300">2. Cung cấp ý tưởng</h3>
                     <p className="text-gray-300 mb-4">Bạn có một ý tưởng sơ khai? Hãy nhập vào bên dưới để AI phát triển nó thành kịch bản.</p>
                     <textarea
                         className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors mb-4"

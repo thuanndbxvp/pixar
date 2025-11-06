@@ -1,14 +1,22 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Story, ScenePrompt } from '../types';
 import { ROLE_PROMPT, STEP_1_PROMPT, getStep2And3Prompt, getStep4Prompt } from '../constants';
 
-const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
+const getGeminiApiKey = (): string | null => {
+    const storedKeys = localStorage.getItem('apiKeys');
+    if (storedKeys) {
+        return JSON.parse(storedKeys).gemini || null;
+    }
+    return null;
+};
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const getAiClient = () => {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+        throw new Error("Google Gemini API Key is not set. Please add it in the API Key Management.");
+    }
+    return new GoogleGenAI({ apiKey });
+}
 
 // Parser for Step 1
 const parseStories = (responseText: string): Story[] => {
@@ -25,6 +33,7 @@ const parseStories = (responseText: string): Story[] => {
 
 export const generateStoryIdeas = async (): Promise<Story[]> => {
     try {
+        const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: [{ parts: [{ text: STEP_1_PROMPT }] }],
@@ -37,12 +46,16 @@ export const generateStoryIdeas = async (): Promise<Story[]> => {
         return parseStories(responseText);
     } catch (error) {
         console.error("Error generating story ideas:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to communicate with Gemini API: ${error.message}`);
+        }
         throw new Error("Failed to communicate with Gemini API.");
     }
 };
 
 export const expandStoryAndCreateCast = async (storyContent: string): Promise<string> => {
     try {
+        const ai = getAiClient();
         const prompt = getStep2And3Prompt(storyContent);
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-pro',
@@ -55,12 +68,16 @@ export const expandStoryAndCreateCast = async (storyContent: string): Promise<st
         return response.text;
     } catch (error) {
         console.error("Error expanding story:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to communicate with Gemini API: ${error.message}`);
+        }
         throw new Error("Failed to communicate with Gemini API.");
     }
 };
 
 export const generateVisualPrompts = async (script: string): Promise<ScenePrompt[]> => {
     try {
+        const ai = getAiClient();
         const prompt = getStep4Prompt(script);
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-pro',
@@ -90,6 +107,9 @@ export const generateVisualPrompts = async (script: string): Promise<ScenePrompt
 
     } catch (error) {
         console.error("Error generating visual prompts:", error);
+        if (error instanceof Error) {
+             throw new Error(`Failed to communicate with Gemini API or parse its JSON response: ${error.message}`);
+        }
         throw new Error("Failed to communicate with Gemini API or parse its JSON response.");
     }
 };
