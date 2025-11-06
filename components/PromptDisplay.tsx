@@ -155,7 +155,7 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
     />
     <div>
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-            <h2 className="text-2xl font-semibold text-[var(--theme-400)]">Gợi ý Hình ảnh</h2>
+            <h2 className="text-2xl font-semibold text-[var(--theme-400)]">Gợi ý Hình ảnh{storyTitle ? `: ${storyTitle.split('(')[0].trim()}` : ''}</h2>
             {prompts.length > 0 && !isLoading && (
                 <div className="flex items-center gap-2">
                     <button

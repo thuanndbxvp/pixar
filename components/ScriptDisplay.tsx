@@ -151,7 +151,7 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyT
         />
         <div className="prose prose-invert prose-p:text-gray-300 max-w-none bg-gray-900/50 p-6 rounded-lg ring-1 ring-gray-700">
             <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-              <h2 className="text-2xl font-semibold text-[var(--theme-400)] m-0">Kịch bản được tạo</h2>
+              <h2 className="text-2xl font-semibold text-[var(--theme-400)] m-0">Kịch bản được tạo{storyTitle ? `: ${storyTitle.split('(')[0].trim()}` : ''}</h2>
               {script && !isLoading && (
                   <div className="flex items-center gap-2">
                        <button
