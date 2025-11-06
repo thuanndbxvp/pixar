@@ -316,7 +316,7 @@ const App: React.FC = () => {
               )}
               
               {(step === Step.SCRIPT_GENERATION || step === Step.SCRIPT_GENERATED) && (
-                 <ScriptDisplay script={script} isLoading={isLoading} />
+                 <ScriptDisplay script={script} isLoading={isLoading} storyTitle={selectedStory?.title || null} />
               )}
               
               {step === Step.SCRIPT_GENERATED && (

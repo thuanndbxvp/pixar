@@ -4,6 +4,7 @@ import { ArrowDownTrayIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/
 interface ScriptDisplayProps {
     script: string;
     isLoading: boolean;
+    storyTitle: string | null;
 }
 
 interface FormattedScriptProps {
@@ -98,7 +99,7 @@ const FormattedScript: React.FC<FormattedScriptProps> = ({ text, showAnnotations
 };
 
 
-const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading }) => {
+const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyTitle }) => {
     const [showAnnotations, setShowAnnotations] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
     const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
@@ -133,16 +134,44 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading }) => {
             })
             .join('\n');
     };
+
+    const formatScriptForDownload = (text: string): string => {
+        const annotationRegex = /\s*\(([^)]+)\)([:.]*)$/;
+        return text
+            .split('\n')
+            .map(line => {
+                const match = line.match(annotationRegex);
+                if (match) {
+                    const mainText = (line.substring(0, match.index) + (match[2] || '')).trimEnd();
+                    const annotation = `(${match[1]})`;
+                    if (!mainText.trim()) {
+                        return annotation;
+                    }
+                    return `${mainText}\n${annotation}`;
+                }
+                return line;
+            })
+            .join('\n');
+    };
     
     const handleDownload = (withAnnotations: boolean) => {
         if (!script) return;
         
-        const content = withAnnotations ? script : stripAnnotations(script);
+        const content = withAnnotations ? formatScriptForDownload(script) : stripAnnotations(script);
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `kich-ban${withAnnotations ? '-co-chu-thich' : '-khong-chu-thich'}.txt`;
+
+        const cleanTitle = storyTitle ? storyTitle.split('(')[0].trim() : 'untitled_script';
+        const filenameBase = cleanTitle
+            .replace(/\s+/g, '_')
+            .replace(/[^a-zA-Z0-9_]/g, '')
+            .toLowerCase();
+
+        const annotationSuffix = withAnnotations ? 'with' : 'without';
+        link.download = `script_pixar_${filenameBase}_${annotationSuffix}_VN.txt`;
+        
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
