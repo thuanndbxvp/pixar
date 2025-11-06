@@ -1,5 +1,5 @@
 import type { Story, ScenePrompt, ApiKeyStore } from '../types';
-import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2And3Prompt, getStep4PromptOpenAI, ROLE_PROMPT_NO_TRANSLATION } from '../constants';
+import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4PromptOpenAI, ROLE_PROMPT_NO_TRANSLATION } from '../constants';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
@@ -96,8 +96,17 @@ export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string
     return parseStoriesOpenAI(responseText);
 };
 
-export const expandStoryAndCreateCast = async (storyContent: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
-    const prompt = getStep2And3Prompt(storyContent, aspectRatio);
+export const expandStory = async (storyContent: string, model: string): Promise<string> => {
+    const prompt = getStep2Prompt(storyContent);
+    const messages = [
+        { role: 'system', content: ROLE_PROMPT_NO_TRANSLATION },
+        { role: 'user', content: prompt }
+    ];
+    return await callOpenAI(messages, model);
+};
+
+export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
+    const prompt = getStep3Prompt(expandedStory, aspectRatio);
     const messages = [
         { role: 'system', content: ROLE_PROMPT_NO_TRANSLATION },
         { role: 'user', content: prompt }

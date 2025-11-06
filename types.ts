@@ -3,6 +3,8 @@ import { themeColors } from "./themes";
 export enum Step {
   IDEATION = 'IDEATION',
   STORY_SELECTION = 'STORY_SELECTION',
+  STORY_EXPANSION = 'STORY_EXPANSION',
+  STORY_EXPANDED = 'STORY_EXPANDED',
   SCRIPT_GENERATION = 'SCRIPT_GENERATION',
   SCRIPT_GENERATED = 'SCRIPT_GENERATED',
   PROMPT_GENERATION = 'PROMPT_GENERATION',
@@ -15,6 +17,7 @@ export interface Story {
   id: number;
   title: string;
   content: string;
+  expandedStory?: string;
   script?: string;
   prompts?: ScenePrompt[];
 }

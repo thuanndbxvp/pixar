@@ -5,6 +5,7 @@ import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig, Session } from '
 import { Step } from './types';
 import { themeColors } from './themes';
 import StorySelection from './components/StorySelection';
+import StoryDisplay from './components/StoryDisplay';
 import ScriptDisplay from './components/ScriptDisplay';
 import PromptDisplay from './components/PromptDisplay';
 import StepIndicator from './components/StepIndicator';
@@ -55,6 +56,7 @@ const App: React.FC = () => {
     if (loadingStep) {
         let message = 'AI đang suy nghĩ...';
         if (loadingStep === Step.IDEATION) message = 'Đang tạo ý tưởng...';
+        if (loadingStep === Step.STORY_EXPANSION) message = 'Đang viết câu chuyện...';
         if (loadingStep === Step.SCRIPT_GENERATION) message = 'Đang viết kịch bản...';
         if (loadingStep === Step.PROMPT_GENERATION) message = 'Đang tạo gợi ý...';
         document.title = `${message} | Trợ lý Sáng tạo`;
@@ -115,33 +117,61 @@ const App: React.FC = () => {
     
     setSelectedStoryId(story.id);
 
-    // If script already exists for this story, just show it and don't call the API
-    if (story.script) {
-        setStep(Step.SCRIPT_GENERATED);
+    if (story.expandedStory) {
+        setStep(Step.STORY_EXPANDED);
         return;
     }
 
-    // Otherwise, generate the script
-    setLoadingStep(Step.SCRIPT_GENERATION);
+    setLoadingStep(Step.STORY_EXPANSION);
     setError(null);
-    setStep(Step.SCRIPT_GENERATION);
+    setStep(Step.STORY_EXPANSION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-        const expandedScript = await service.expandStoryAndCreateCast(story.content, aiConfig.model, aspectRatio);
+        const expandedStoryContent = await service.expandStory(story.content, aiConfig.model);
         
-        // Update the specific story in the stories array with the new script, and clear any old prompts
         setStories(prevStories => prevStories.map(s => 
-            s.id === story.id ? { ...s, script: expandedScript, prompts: [] } : s
+            s.id === story.id ? { ...s, expandedStory: expandedStoryContent, script: '', prompts: [] } : s
         ));
         
-        setStep(Step.SCRIPT_GENERATED);
+        setStep(Step.STORY_EXPANDED);
     } catch (err: any) {
         setError(`Không thể phát triển câu chuyện: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
         console.error(err);
     } finally {
         setLoadingStep(null);
     }
-}, [aiConfig, aspectRatio]);
+  }, [aiConfig]);
+
+  const handleGenerateScript = useCallback(async () => {
+    if (selectedStoryId === null || !aiConfig) return;
+    
+    const story = stories.find(s => s.id === selectedStoryId);
+    if (!story || !story.expandedStory) return;
+
+    if (story.script) {
+        setStep(Step.SCRIPT_GENERATED);
+        return;
+    }
+
+    setLoadingStep(Step.SCRIPT_GENERATION);
+    setError(null);
+    setStep(Step.SCRIPT_GENERATION);
+    try {
+        const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+        const generatedScript = await service.createScriptFromStory(story.expandedStory, aiConfig.model, aspectRatio);
+        
+        setStories(prevStories => prevStories.map(s => 
+            s.id === selectedStoryId ? { ...s, script: generatedScript, prompts: [] } : s
+        ));
+
+        setStep(Step.SCRIPT_GENERATED);
+    } catch (err: any) {
+        setError(`Không thể tạo kịch bản: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
+        console.error(err);
+    } finally {
+        setLoadingStep(null);
+    }
+  }, [stories, selectedStoryId, aiConfig, aspectRatio]);
 
 const handleGeneratePrompts = useCallback(async () => {
     if (selectedStoryId === null || !aiConfig) return;
@@ -156,7 +186,6 @@ const handleGeneratePrompts = useCallback(async () => {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
         const visualPrompts = await service.generateVisualPrompts(story.script, aiConfig.model, aspectRatio);
         
-        // Update the story with generated prompts
         setStories(prevStories => prevStories.map(s => 
             s.id === selectedStoryId ? { ...s, prompts: visualPrompts } : s
         ));
@@ -250,8 +279,10 @@ const handleGeneratePrompts = useCallback(async () => {
     if (stepIndex === 0) {
         setStep(Step.STORY_SELECTION);
     } else if (stepIndex === 1) {
-        setStep(Step.SCRIPT_GENERATED);
+        setStep(Step.STORY_EXPANDED);
     } else if (stepIndex === 2) {
+        setStep(Step.SCRIPT_GENERATED);
+    } else if (stepIndex === 3) {
         setStep(Step.PROMPTS_GENERATED);
     }
   };
@@ -330,6 +361,7 @@ const handleGeneratePrompts = useCallback(async () => {
             onStepClick={handleStepNavigation}
             canNavigateTo={[
                 stories.length > 0,
+                !!selectedStory?.expandedStory,
                 !!selectedStory?.script,
                 !!selectedStory?.prompts && selectedStory.prompts.length > 0,
             ]}
@@ -400,6 +432,16 @@ const handleGeneratePrompts = useCallback(async () => {
                 <StorySelection stories={stories} onSelect={handleSelectStory} />
               )}
               
+              {(step === Step.STORY_EXPANSION || step === Step.STORY_EXPANDED) && (
+                 <StoryDisplay story={selectedStory} isLoading={loadingStep === Step.STORY_EXPANSION} aiConfig={aiConfig} />
+              )}
+
+              {step === Step.STORY_EXPANDED && (
+                <div className="text-center mt-8">
+                  <ActionButton onClick={handleGenerateScript} Icon={ViewColumnsIcon} text="Tạo Kịch bản" />
+                </div>
+              )}
+
               {(step === Step.SCRIPT_GENERATION || step === Step.SCRIPT_GENERATED) && (
                  <ScriptDisplay script={script} isLoading={loadingStep === Step.SCRIPT_GENERATION} storyTitle={selectedStory?.title || null} aiConfig={aiConfig} />
               )}

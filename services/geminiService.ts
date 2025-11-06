@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Story, ScenePrompt, ApiKeyStore } from '../types';
-import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2And3Prompt, getStep4Prompt, ROLE_PROMPT_NO_TRANSLATION } from '../constants';
+import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, ROLE_PROMPT_NO_TRANSLATION } from '../constants';
 
 const getGeminiApiKey = (): string | null => {
     const storeStr = localStorage.getItem('apiKeyStore');
@@ -97,10 +97,32 @@ export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string
     }
 };
 
-export const expandStoryAndCreateCast = async (storyContent: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
+export const expandStory = async (storyContent: string, model: string): Promise<string> => {
     try {
         const ai = getAiClient();
-        const prompt = getStep2And3Prompt(storyContent, aspectRatio);
+        const prompt = getStep2Prompt(storyContent);
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: [{ parts: [{ text: prompt }] }],
+            config: {
+                systemInstruction: ROLE_PROMPT_NO_TRANSLATION,
+                temperature: 0.7,
+            }
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error expanding story:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to communicate with Gemini API: ${error.message}`);
+        }
+        throw new Error("Failed to communicate with Gemini API.");
+    }
+};
+
+export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
+    try {
+        const ai = getAiClient();
+        const prompt = getStep3Prompt(expandedStory, aspectRatio);
         const response = await ai.models.generateContent({
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
@@ -111,7 +133,7 @@ export const expandStoryAndCreateCast = async (storyContent: string, model: stri
         });
         return response.text;
     } catch (error) {
-        console.error("Error expanding story:", error);
+        console.error("Error creating script from story:", error);
         if (error instanceof Error) {
             throw new Error(`Failed to communicate with Gemini API: ${error.message}`);
         }

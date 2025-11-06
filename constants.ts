@@ -102,19 +102,42 @@ Each story must include:
 Format the output clearly. For each story, start with "STORY TITLE:" on one line, followed by the story content on the next lines. Separate each story with "---".
 `;
 
-export const getStep2And3Prompt = (storyContent: string, aspectRatio: '9:16' | '16:9'): string => `
+export const getStep2Prompt = (storyContent: string): string => `
 ${ROLE_PROMPT_NO_TRANSLATION}
 
-WORKFLOW STEP 2 & 3 — LOCK CAST & EXPAND STORY
+WORKFLOW STEP 2 — EXPAND STORY
 
-The user has selected the following story:
+The user has selected the following micro-story:
 ---
 ${storyContent}
 ---
 
+Your task is to expand this into a complete, detailed, and emotionally rich short story.
+This is not a script yet. Write it as cinematic prose.
+- Flesh out the plot, add more details to the setting and atmosphere.
+- Deepen the character's motivations and internal conflicts.
+- Build the emotional arc, ensuring the beginning, middle, and end are well-defined.
+- The story should still lead to the same surprising but logical twist.
+- Maintain a tone suitable for a Pixar-style animated short.
+- No dialogue. All actions and emotions must be conveyed through visual description.
+- Keep the output in English only.
+
+The expanded story should be about 300-400 words.
+`;
+
+export const getStep3Prompt = (expandedStory: string, aspectRatio: '9:16' | '16:9'): string => `
+${ROLE_PROMPT_NO_TRANSLATION}
+
+WORKFLOW STEP 3 — LOCK CAST & CREATE SCRIPT
+
+The user has approved the following expanded story:
+---
+${expandedStory}
+---
+
 Your tasks are:
 1.  **LOCK THE CAST:** Create a fixed character set for this story. Follow the CHARACTER SCHEMA exactly. Present the cast first under a "CHARACTERS" heading.
-2.  **EXPAND THE STORY:** Expand the chosen story into 10–15 cinematic scenes.
+2.  **CREATE THE SCRIPT:** Break down the expanded story into 10–15 cinematic scenes.
     **IMPORTANT**: All scenes must be framed and described with a **${aspectRatio}** aspect ratio in mind (${aspectRatio === '9:16' ? 'vertical' : 'horizontal'} format).
     For each scene, provide:
     - Setting: place, time of day, lighting, atmosphere.

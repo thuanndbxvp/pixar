@@ -11,6 +11,8 @@ interface StepIndicatorProps {
 const stepsConfig = [
   { id: Step.IDEATION, label: 'Ideas' },
   { id: Step.STORY_SELECTION, label: 'Ideas' },
+  { id: Step.STORY_EXPANSION, label: 'Story' },
+  { id: Step.STORY_EXPANDED, label: 'Story' },
   { id: Step.SCRIPT_GENERATION, label: 'Script' },
   { id: Step.SCRIPT_GENERATED, label: 'Script' },
   { id: Step.PROMPT_GENERATION, label: 'Prompts' },
@@ -22,12 +24,15 @@ const getStepIndex = (currentStep: AppStep): number => {
         case Step.IDEATION:
         case Step.STORY_SELECTION:
             return 0;
+        case Step.STORY_EXPANSION:
+        case Step.STORY_EXPANDED:
+            return 1;
         case Step.SCRIPT_GENERATION:
         case Step.SCRIPT_GENERATED:
-            return 1;
+            return 2;
         case Step.PROMPT_GENERATION:
         case Step.PROMPTS_GENERATED:
-            return 2;
+            return 3;
         default:
             return 0;
     }
@@ -35,7 +40,7 @@ const getStepIndex = (currentStep: AppStep): number => {
 
 const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, onStepClick, canNavigateTo }) => {
   const activeIndex = getStepIndex(currentStep);
-  const distinctSteps = ['Ý tưởng', 'Kịch bản', 'Gợi ý'];
+  const distinctSteps = ['Ý tưởng', 'Câu chuyện', 'Kịch bản', 'Gợi ý'];
 
   return (
     <div className="w-full mb-8">
