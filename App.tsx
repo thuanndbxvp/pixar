@@ -13,7 +13,7 @@ import ActionButton from './components/ActionButton';
 import ApiKeyModal from './components/ApiKeyModal';
 import LibraryModal from './components/LibraryModal';
 import ThemePicker from './components/ThemePicker';
-import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon, BookmarkSquareIcon, FolderOpenIcon } from '@heroicons/react/24/solid';
+import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon, BookmarkSquareIcon, FolderOpenIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { AI_MODELS } from './constants';
 
 const App: React.FC = () => {
@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
   const [theme, setTheme] = useState<ThemeName>('sky');
+  const [isJustSaved, setIsJustSaved] = useState(false);
 
   const loadAiConfig = useCallback(() => {
     const storedConfig = localStorage.getItem('aiConfig');
@@ -140,26 +141,49 @@ const App: React.FC = () => {
   };
 
   const handleSaveSession = () => {
-    const sessionName = prompt("Nhập tên cho phiên làm việc của bạn:", `Phiên làm việc ngày ${new Date().toLocaleDateString()}`);
-    if (!sessionName || !sessionName.trim()) {
-        return; // User cancelled or entered empty name
+    if (!selectedStory) {
+      console.warn("Lưu phiên làm việc được gọi khi chưa có câu chuyện nào được chọn.");
+      return;
     }
+
+    const sessionName = selectedStory.title;
 
     const currentState = {
         step, stories, selectedStory, script, prompts, userIdea, aiConfig, theme
     };
-
-    const newSession: Session = {
-        id: crypto.randomUUID(),
-        name: sessionName.trim(),
-        createdAt: new Date().toISOString(),
-        state: currentState
-    };
-
+    
     const existingSessions: Session[] = JSON.parse(localStorage.getItem('animationStudioSessions') || '[]');
-    const updatedSessions = [newSession, ...existingSessions];
+    
+    const existingSessionIndex = existingSessions.findIndex(s => s.name === sessionName);
+
+    let updatedSessions;
+
+    if (existingSessionIndex > -1) {
+        // Update existing session
+        const updatedSession = {
+            ...existingSessions[existingSessionIndex],
+            state: currentState,
+            createdAt: new Date().toISOString(), // Update timestamp
+        };
+        existingSessions[existingSessionIndex] = updatedSession;
+        updatedSessions = existingSessions;
+    } else {
+        // Add new session
+        const newSession: Session = {
+            id: crypto.randomUUID(),
+            name: sessionName,
+            createdAt: new Date().toISOString(),
+            state: currentState
+        };
+        updatedSessions = [newSession, ...existingSessions];
+    }
+
     localStorage.setItem('animationStudioSessions', JSON.stringify(updatedSessions));
-    alert(`Đã lưu phiên làm việc "${sessionName.trim()}"!`);
+    
+    setIsJustSaved(true);
+    setTimeout(() => {
+        setIsJustSaved(false);
+    }, 2500);
   };
 
   const handleLoadSession = (session: Session) => {
@@ -207,10 +231,29 @@ const App: React.FC = () => {
           <p className="mt-4 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn theo phong cách Pixar.</p>
           
           <div className="flex justify-center items-center gap-2 mt-6">
-             <button onClick={handleSaveSession} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
-               <BookmarkSquareIcon className="w-5 h-5"/>
-               <span>Lưu Phiên</span>
-             </button>
+             <button
+                onClick={handleSaveSession}
+                disabled={!selectedStory || isJustSaved}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors font-medium ${
+                    isJustSaved
+                        ? 'bg-green-500/20 text-green-300 cursor-default'
+                        : !selectedStory
+                        ? 'bg-gray-700/30 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-700/50 hover:bg-gray-600/70 text-gray-200'
+                }`}
+                >
+                {isJustSaved ? (
+                    <>
+                    <CheckIcon className="w-5 h-5" />
+                    <span>Đã lưu</span>
+                    </>
+                ) : (
+                    <>
+                    <BookmarkSquareIcon className="w-5 h-5" />
+                    <span>Lưu Phiên</span>
+                    </>
+                )}
+            </button>
               <button onClick={() => setIsLibraryModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                <FolderOpenIcon className="w-5 h-5"/>
                <span>Thư viện</span>
