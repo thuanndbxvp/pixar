@@ -28,11 +28,11 @@ const CopyButton: React.FC<{ textToCopy: string }> = ({ textToCopy }) => {
 const parseAnnotatedText = (text: string): { main: string; annotation: string } => {
     if (!text) return { main: '', annotation: '' };
 
-    const annotationRegex = /\s*\(([^)]+)\)([:.]*)$/;
     const mainLines: string[] = [];
     const annotationLines: string[] = [];
 
     text.split('\n').forEach(line => {
+        const annotationRegex = /\s*\(([^)]+)\)([:.]*)$/;
         const match = line.match(annotationRegex);
         if (match) {
             // Main part of the line (text before the annotation)
@@ -48,8 +48,8 @@ const parseAnnotatedText = (text: string): { main: string; annotation: string } 
     });
 
     return {
-        main: mainLines.join('\n'),
-        annotation: annotationLines.join('\n'),
+        main: mainLines.join('\n').trim(),
+        annotation: annotationLines.join('\n').trim(),
     };
 };
 
