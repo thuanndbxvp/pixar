@@ -30,7 +30,7 @@ const App: React.FC = () => {
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
   const [theme, setTheme] = useState<ThemeName>('sky');
   const [isJustSaved, setIsJustSaved] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16');
+  const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('16:9');
 
   const loadAiConfig = useCallback(() => {
     const storedConfig = localStorage.getItem('aiConfig');
@@ -139,7 +139,7 @@ const App: React.FC = () => {
     setIsLoading(false);
     setError(null);
     setUserIdea('');
-    setAspectRatio('9:16');
+    setAspectRatio('16:9');
   };
 
   const handleSaveSession = () => {
@@ -198,7 +198,7 @@ const App: React.FC = () => {
     setUserIdea(s.userIdea);
     setAiConfig(s.aiConfig);
     setTheme(s.theme);
-    setAspectRatio(s.aspectRatio || '9:16');
+    setAspectRatio(s.aspectRatio || '16:9');
     setError(null);
     setIsLoading(false);
     setIsLibraryModalOpen(false); // Close modal on load
@@ -283,23 +283,18 @@ const App: React.FC = () => {
             <>
               {step === Step.IDEATION && (
                 <div className="text-center">
-                    <div className="mb-8">
-                        <h3 className="text-lg font-semibold text-center mb-3 text-gray-300">Chọn Định dạng Khung hình</h3>
-                        <div className="flex justify-center gap-4">
-                            <button
-                                onClick={() => setAspectRatio('9:16')}
-                                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${aspectRatio === '9:16' ? 'border-[var(--theme-500)] bg-[var(--theme-500)]/10' : 'border-gray-600 hover:border-gray-500'}`}
+                    <div className="mb-8 flex justify-center">
+                        <div className="max-w-xs w-full">
+                            <label htmlFor="aspectRatio" className="block text-sm font-medium text-gray-300 mb-2 text-center">Định dạng Khung hình</label>
+                            <select
+                                id="aspectRatio"
+                                value={aspectRatio}
+                                onChange={(e) => setAspectRatio(e.target.value as '9:16' | '16:9')}
+                                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:ring-2 focus:ring-[var(--theme-500)] focus:border-[var(--theme-500)]"
                             >
-                                <div className="w-8 h-14 bg-gray-700 rounded-sm"></div>
-                                <span className={`font-medium ${aspectRatio === '9:16' ? 'text-[var(--theme-400)]' : 'text-gray-300'}`}>Dọc (9:16)</span>
-                            </button>
-                             <button
-                                onClick={() => setAspectRatio('16:9')}
-                                className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${aspectRatio === '16:9' ? 'border-[var(--theme-500)] bg-[var(--theme-500)]/10' : 'border-gray-600 hover:border-gray-500'}`}
-                            >
-                                <div className="w-14 h-8 bg-gray-700 rounded-sm"></div>
-                                <span className={`font-medium ${aspectRatio === '16:9' ? 'text-[var(--theme-400)]' : 'text-gray-300'}`}>Ngang (16:9)</span>
-                            </button>
+                                <option value="16:9">Ngang (16:9)</option>
+                                <option value="9:16">Dọc (9:16)</option>
+                            </select>
                         </div>
                     </div>
 

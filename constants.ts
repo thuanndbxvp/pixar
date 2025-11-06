@@ -69,7 +69,7 @@ ${ROLE_PROMPT}
 
 WORKFLOW STEP 1 — GENERATE 5–7 ORIGINAL MICRO-STORIES
 
-Write 5 standalone short stories, each designed for a 60–90 second film.
+Write 6 standalone short stories, each designed for a 60–90 second film.
 Each story must include:
 - A very real-life problem (e.g., poverty, debt, betrayal, temptation, consequence, bad choices…).
 - Action and psychological conflict as the core.
@@ -83,14 +83,14 @@ Format the output clearly. For each story, start with "STORY TITLE:" on one line
 export const getStep1FromSeedPrompt = (seedIdea: string): string => `
 ${ROLE_PROMPT}
 
-WORKFLOW STEP 1 — GENERATE 5 ORIGINAL MICRO-STORIES FROM A SEED IDEA
+WORKFLOW STEP 1 — GENERATE 6 ORIGINAL MICRO-STORIES FROM A SEED IDEA
 
 The user has provided the following initial idea:
 ---
 ${seedIdea}
 ---
 
-Your task is to write 5 standalone short stories based on this seed idea. Each story should be a unique interpretation or expansion of the user's concept, designed for a 60–90 second film.
+Your task is to write 6 standalone short stories based on this seed idea. Each story should be a unique interpretation or expansion of the user's concept, designed for a 60–90 second film.
 
 Each story must include:
 - A very real-life problem (e.g., poverty, debt, betrayal, temptation, consequence, bad choices…).
