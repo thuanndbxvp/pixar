@@ -15,6 +15,8 @@ export interface Story {
   id: number;
   title: string;
   content: string;
+  script?: string;
+  prompts?: ScenePrompt[];
 }
 
 export interface ScenePrompt {
@@ -59,9 +61,7 @@ export interface Session {
   state: {
     step: AppStep;
     stories: Story[];
-    selectedStory: Story | null;
-    script: string;
-    prompts: ScenePrompt[];
+    selectedStoryId: number | null;
     userIdea: string;
     aiConfig: AIConfig | null;
     theme: ThemeName;

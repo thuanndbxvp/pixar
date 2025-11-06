@@ -42,7 +42,8 @@ const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, onStepClick,
       <div className="flex items-center justify-between">
         {distinctSteps.map((label, index) => {
           const isActive = index <= activeIndex;
-          const isClickable = canNavigateTo[index] && index < activeIndex;
+          // A step is clickable if its data exists and it's not the currently active step.
+          const isClickable = canNavigateTo[index] && index !== activeIndex;
 
           return (
             <React.Fragment key={label}>

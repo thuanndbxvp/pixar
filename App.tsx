@@ -19,9 +19,7 @@ import { AI_MODELS } from './constants';
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(Step.IDEATION);
   const [stories, setStories] = useState<Story[]>([]);
-  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
-  const [script, setScript] = useState<string>('');
-  const [prompts, setPrompts] = useState<ScenePrompt[]>([]);
+  const [selectedStoryId, setSelectedStoryId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [userIdea, setUserIdea] = useState<string>('');
@@ -94,47 +92,68 @@ const App: React.FC = () => {
 
   const handleSelectStory = useCallback(async (story: Story) => {
     if (!aiConfig) return;
-    setSelectedStory(story);
+    
+    setSelectedStoryId(story.id);
+
+    // If script already exists for this story, just show it and don't call the API
+    if (story.script) {
+        setStep(Step.SCRIPT_GENERATED);
+        return;
+    }
+
+    // Otherwise, generate the script
     setIsLoading(true);
     setError(null);
     setStep(Step.SCRIPT_GENERATION);
     try {
-      const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-      const expandedScript = await service.expandStoryAndCreateCast(story.content, aiConfig.model, aspectRatio);
-      setScript(expandedScript);
-      setStep(Step.SCRIPT_GENERATED);
+        const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+        const expandedScript = await service.expandStoryAndCreateCast(story.content, aiConfig.model, aspectRatio);
+        
+        // Update the specific story in the stories array with the new script, and clear any old prompts
+        setStories(prevStories => prevStories.map(s => 
+            s.id === story.id ? { ...s, script: expandedScript, prompts: [] } : s
+        ));
+        
+        setStep(Step.SCRIPT_GENERATED);
     } catch (err: any) {
-      setError(`Không thể phát triển câu chuyện: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
-      console.error(err);
+        setError(`Không thể phát triển câu chuyện: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
+        console.error(err);
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  }, [aiConfig, aspectRatio]);
+}, [aiConfig, aspectRatio]);
 
-  const handleGeneratePrompts = useCallback(async () => {
-    if (!script || !aiConfig) return;
+const handleGeneratePrompts = useCallback(async () => {
+    if (selectedStoryId === null || !aiConfig) return;
+    
+    const story = stories.find(s => s.id === selectedStoryId);
+    if (!story || !story.script) return;
+    
     setIsLoading(true);
     setError(null);
     setStep(Step.PROMPT_GENERATION);
     try {
-      const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-      const visualPrompts = await service.generateVisualPrompts(script, aiConfig.model, aspectRatio);
-      setPrompts(visualPrompts);
-      setStep(Step.PROMPTS_GENERATED);
+        const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+        const visualPrompts = await service.generateVisualPrompts(story.script, aiConfig.model, aspectRatio);
+        
+        // Update the story with generated prompts
+        setStories(prevStories => prevStories.map(s => 
+            s.id === selectedStoryId ? { ...s, prompts: visualPrompts } : s
+        ));
+
+        setStep(Step.PROMPTS_GENERATED);
     } catch (err: any) {
-      setError(`Không thể tạo gợi ý hình ảnh: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
-      console.error(err);
+        setError(`Không thể tạo gợi ý hình ảnh: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
+        console.error(err);
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  }, [script, aiConfig, aspectRatio]);
+}, [stories, selectedStoryId, aiConfig, aspectRatio]);
   
   const handleReset = () => {
     setStep(Step.IDEATION);
     setStories([]);
-    setSelectedStory(null);
-    setScript('');
-    setPrompts([]);
+    setSelectedStoryId(null);
     setIsLoading(false);
     setError(null);
     setUserIdea('');
@@ -142,15 +161,17 @@ const App: React.FC = () => {
   };
 
   const handleSaveSession = () => {
-    if (!selectedStory) {
+    if (selectedStoryId === null) {
       console.warn("Lưu phiên làm việc được gọi khi chưa có câu chuyện nào được chọn.");
       return;
     }
 
-    const sessionName = selectedStory.title;
+    const storyToGetName = stories.find(s => s.id === selectedStoryId);
+    if (!storyToGetName) return;
+    const sessionName = storyToGetName.title;
 
     const currentState = {
-        step, stories, selectedStory, script, prompts, userIdea, aiConfig, theme, aspectRatio
+        step, stories, selectedStoryId, userIdea, aiConfig, theme, aspectRatio
     };
     
     const existingSessions: Session[] = JSON.parse(localStorage.getItem('animationStudioSessions') || '[]');
@@ -191,9 +212,7 @@ const App: React.FC = () => {
     const s = session.state;
     setStep(s.step);
     setStories(s.stories);
-    setSelectedStory(s.selectedStory);
-    setScript(s.script);
-    setPrompts(s.prompts);
+    setSelectedStoryId(s.selectedStoryId);
     setUserIdea(s.userIdea);
     setAiConfig(s.aiConfig);
     setTheme(s.theme);
@@ -203,13 +222,16 @@ const App: React.FC = () => {
     setIsLibraryModalOpen(false); // Close modal on load
   };
 
+  const selectedStory = stories.find(s => s.id === selectedStoryId) || null;
+  const script = selectedStory?.script || '';
+  const prompts = selectedStory?.prompts || [];
+
   const handleStepNavigation = (stepIndex: number) => {
-    // Prevent navigation if data for that step doesn't exist
-    if (stepIndex === 0 && stories.length > 0) {
+    if (stepIndex === 0) {
         setStep(Step.STORY_SELECTION);
-    } else if (stepIndex === 1 && script) {
+    } else if (stepIndex === 1) {
         setStep(Step.SCRIPT_GENERATED);
-    } else if (stepIndex === 2 && prompts.length > 0) {
+    } else if (stepIndex === 2) {
         setStep(Step.PROMPTS_GENERATED);
     }
   };
@@ -246,11 +268,11 @@ const App: React.FC = () => {
           <div className="flex justify-center items-center gap-2 mt-6">
              <button
                 onClick={handleSaveSession}
-                disabled={!selectedStory || isJustSaved}
+                disabled={selectedStoryId === null || isJustSaved}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors font-medium ${
                     isJustSaved
                         ? 'bg-green-500/20 text-green-300 cursor-default'
-                        : !selectedStory
+                        : selectedStoryId === null
                         ? 'bg-gray-700/30 text-gray-500 cursor-not-allowed'
                         : 'bg-gray-700/50 hover:bg-gray-600/70 text-gray-200'
                 }`}
@@ -288,8 +310,8 @@ const App: React.FC = () => {
             onStepClick={handleStepNavigation}
             canNavigateTo={[
                 stories.length > 0,
-                !!script,
-                prompts.length > 0,
+                !!selectedStory?.script,
+                !!selectedStory?.prompts && selectedStory.prompts.length > 0,
             ]}
            />
 
