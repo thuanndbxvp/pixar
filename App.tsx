@@ -219,16 +219,16 @@ const App: React.FC = () => {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleReset(); } }}
-            aria-label="Bắt đầu lại dự án"
+            aria-label="Start New Project"
           >
             <div className="flex items-center justify-center gap-3 group-hover:opacity-80 transition-opacity duration-300">
               <FilmIcon className="h-10 w-10 text-[var(--theme-400)] transform-gpu"/>
               <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-[var(--theme-400)] to-purple-500 text-transparent bg-clip-text">
-                Trợ lý Sáng tạo Phim hoạt hình
+                Animation Creation Assistant
               </h1>
             </div>
           </div>
-          <p className="mt-4 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn theo phong cách Pixar.</p>
+          <p className="mt-4 text-lg text-gray-400">Your AI partner for creating Pixar-style short animated films.</p>
           
           <div className="flex justify-center items-center gap-2 mt-6">
              <button
@@ -245,22 +245,22 @@ const App: React.FC = () => {
                 {isJustSaved ? (
                     <>
                     <CheckIcon className="w-5 h-5" />
-                    <span>Đã lưu</span>
+                    <span>Saved</span>
                     </>
                 ) : (
                     <>
                     <BookmarkSquareIcon className="w-5 h-5" />
-                    <span>Lưu Phiên</span>
+                    <span>Save Session</span>
                     </>
                 )}
             </button>
               <button onClick={() => setIsLibraryModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                <FolderOpenIcon className="w-5 h-5"/>
-               <span>Thư viện</span>
+               <span>Library</span>
              </button>
             <button onClick={() => setIsApiModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                <KeyIcon className="w-5 h-5"/>
-               <span>Quản lý API</span>
+               <span>Manage API</span>
            </button>
            <ThemePicker selectedTheme={theme} onThemeChange={setTheme} />
         </div>

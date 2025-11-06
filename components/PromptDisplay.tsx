@@ -25,7 +25,7 @@ const CopyButton: React.FC<{ textToCopy: string }> = ({ textToCopy }) => {
 };
 
 // This parser separates the main English text from the Vietnamese annotations in parentheses.
-const parseSceneText = (text: string): { main: string; annotation: string } => {
+const parseAnnotatedText = (text: string): { main: string; annotation: string } => {
     if (!text) return { main: '', annotation: '' };
 
     const annotationRegex = /\s*\(([^)]+)\)([:.]*)$/;
@@ -79,16 +79,21 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
             return result;
         };
 
-        const headers = ['Mô tả cảnh', 'Chú thích Tiếng Việt', 'Prompt IMG', 'Prompt Video'];
+        const headers = ['Mô tả cảnh', 'Chú thích Tiếng Việt', 'Prompt IMG', 'Chú thích prompt IMG', 'Prompt Video', 'Chú thích prompt video'];
         const csvRows = [headers.join(DELIMITER)];
 
         prompts.forEach(p => {
-            const { main: sceneMainText, annotation: sceneAnnotation } = parseSceneText(p.scene_text);
+            const { main: sceneMainText, annotation: sceneAnnotation } = parseAnnotatedText(p.scene_text);
+            const { main: imagePromptMain, annotation: imagePromptAnnotation } = parseAnnotatedText(p.image_prompt);
+            const { main: videoPromptMain, annotation: videoPromptAnnotation } = parseAnnotatedText(p.video_prompt);
+
             const row = [
                 escapeCsvField(sceneMainText),
                 escapeCsvField(sceneAnnotation || ''),
-                escapeCsvField(p.image_prompt),
-                escapeCsvField(p.video_prompt)
+                escapeCsvField(imagePromptMain),
+                escapeCsvField(imagePromptAnnotation || ''),
+                escapeCsvField(videoPromptMain),
+                escapeCsvField(videoPromptAnnotation || '')
             ];
             csvRows.push(row.join(DELIMITER));
         });
@@ -142,7 +147,10 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         </div>
       <div className="space-y-8">
         {prompts.map((p) => {
-          const { main: sceneMainText, annotation: sceneAnnotation } = parseSceneText(p.scene_text);
+          const { main: sceneMainText, annotation: sceneAnnotation } = parseAnnotatedText(p.scene_text);
+          const { main: imagePromptMain, annotation: imagePromptAnnotation } = parseAnnotatedText(p.image_prompt);
+          const { main: videoPromptMain, annotation: videoPromptAnnotation } = parseAnnotatedText(p.video_prompt);
+          
           return (
               <div key={p.scene_number} className="bg-gray-800/70 p-5 rounded-lg border border-gray-700">
                 <h3 className="text-xl font-bold text-[var(--theme-400)] mb-4">Cảnh {p.scene_number}</h3>
@@ -162,15 +170,29 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                      <div>
                         <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Hình ảnh (9:16)</h4>
                         <div className="relative">
-                            <p className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">{p.image_prompt}</p>
-                            <CopyButton textToCopy={p.image_prompt} />
+                            <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
+                               <p className="whitespace-pre-wrap">{imagePromptMain}</p>
+                                {showAnnotations && imagePromptAnnotation && (
+                                    <div className="mt-2 pt-2 border-t border-gray-700/50">
+                                        <p className="italic text-[var(--theme-400)] opacity-95 whitespace-pre-wrap">{imagePromptAnnotation}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <CopyButton textToCopy={imagePromptMain} />
                         </div>
                     </div>
                     <div>
                         <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Video (9:16)</h4>
                         <div className="relative">
-                            <p className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">{p.video_prompt}</p>
-                            <CopyButton textToCopy={p.video_prompt} />
+                             <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
+                               <p className="whitespace-pre-wrap">{videoPromptMain}</p>
+                                {showAnnotations && videoPromptAnnotation && (
+                                    <div className="mt-2 pt-2 border-t border-gray-700/50">
+                                        <p className="italic text-[var(--theme-400)] opacity-95 whitespace-pre-wrap">{videoPromptAnnotation}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <CopyButton textToCopy={videoPromptMain} />
                         </div>
                     </div>
                 </div>
