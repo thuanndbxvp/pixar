@@ -34,7 +34,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-start z-50 p-4 pt-20">
       <div className="bg-[#1A233A] text-gray-200 rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-700 flex flex-col" style={{height: 'min(80vh, 700px)'}}>
         <div className="p-6 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
           <h2 className="text-2xl font-bold text-white">{title}</h2>

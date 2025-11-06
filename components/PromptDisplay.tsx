@@ -48,6 +48,13 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         };
     }, []);
 
+    useEffect(() => {
+        // Reset translation state if the prompts content changes.
+        setTranslation(null);
+        setTranslationError(null);
+        setIsTranslating(false);
+    }, [prompts]);
+
     if (isLoading && prompts.length === 0) {
         return null;
     }
@@ -87,18 +94,21 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
     const handleTranslate = async () => {
         if (prompts.length === 0 || !aiConfig) return;
         setIsTranslationModalOpen(true);
-        setIsTranslating(true);
-        setTranslation(null);
-        setTranslationError(null);
-        try {
-            const textToTranslate = formatPromptsForTranslation();
-            const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-            const result = await service.translateText(textToTranslate, aiConfig.model);
-            setTranslation(result);
-        } catch (err: any) {
-            setTranslationError(`Không thể dịch các gợi ý: ${err.message}`);
-        } finally {
-            setIsTranslating(false);
+
+        if (!translation && !isTranslating) {
+            setIsTranslating(true);
+            setTranslation(null);
+            setTranslationError(null);
+            try {
+                const textToTranslate = formatPromptsForTranslation();
+                const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+                const result = await service.translateText(textToTranslate, aiConfig.model);
+                setTranslation(result);
+            } catch (err: any) {
+                setTranslationError(`Không thể dịch các gợi ý: ${err.message}`);
+            } finally {
+                setIsTranslating(false);
+            }
         }
     };
 

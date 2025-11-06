@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowDownTrayIcon, ClipboardDocumentIcon, CheckIcon, LanguageIcon } from '@heroicons/react/24/outline';
 import * as geminiService from '../services/geminiService';
 import * as openaiService from '../services/openaiService';
@@ -76,6 +76,14 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyT
     const [translationError, setTranslationError] = useState<string | null>(null);
     const [isTranslationModalOpen, setIsTranslationModalOpen] = useState(false);
 
+    useEffect(() => {
+        // Reset translation state if the script content changes.
+        // This ensures a new translation is fetched for a new script.
+        setTranslation(null);
+        setTranslationError(null);
+        setIsTranslating(false);
+    }, [script]);
+
     if (isLoading && !script) {
         return null; 
     }
@@ -115,18 +123,22 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyT
     
     const handleTranslate = async () => {
         if (!script || !aiConfig) return;
+        
         setIsTranslationModalOpen(true);
-        setIsTranslating(true);
-        setTranslation(null);
-        setTranslationError(null);
-        try {
-            const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-            const result = await service.translateText(script, aiConfig.model);
-            setTranslation(result);
-        } catch (err: any) {
-            setTranslationError(`Không thể dịch kịch bản: ${err.message}`);
-        } finally {
-            setIsTranslating(false);
+
+        // Only fetch translation if it doesn't exist and we're not already fetching it.
+        if (!translation && !isTranslating) { 
+            setIsTranslating(true);
+            setTranslationError(null);
+            try {
+                const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+                const result = await service.translateText(script, aiConfig.model);
+                setTranslation(result);
+            } catch (err: any) {
+                setTranslationError(`Không thể dịch kịch bản: ${err.message}`);
+            } finally {
+                setIsTranslating(false);
+            }
         }
     };
 
