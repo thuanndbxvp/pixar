@@ -20,10 +20,10 @@ const FormattedScript: React.FC<{ text: string }> = ({ text }) => {
           <div key={index}>
             {part.split('\n').map((line, lineIndex) => {
               if (line.toUpperCase().startsWith('CHARACTERS')) {
-                return <h2 key={lineIndex} className="text-2xl font-bold text-cyan-400 mt-4 mb-2">{line}</h2>;
+                return <h2 key={lineIndex} className="text-2xl font-bold text-[var(--theme-400)] mt-4 mb-2">{line}</h2>;
               }
               if (line.toUpperCase().startsWith('SCENE')) {
-                return <h3 key={lineIndex} className="text-xl font-semibold text-cyan-300 mt-4 mb-2">{line}</h3>;
+                return <h3 key={lineIndex} className="text-xl font-semibold text-[var(--theme-400)] mt-4 mb-2">{line}</h3>;
               }
               if (line.match(/^\s*(Setting|Characters|Action|Emotion\/Lesson):/)) {
                 return (
@@ -49,8 +49,8 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading }) => {
     }
 
     return (
-        <div className="prose prose-invert prose-p:text-gray-300 prose-headings:text-cyan-400 max-w-none bg-gray-900/50 p-6 rounded-lg ring-1 ring-gray-700">
-            <h2 className="text-2xl font-semibold mb-4 text-center text-cyan-300">Kịch bản được tạo</h2>
+        <div className="prose prose-invert prose-p:text-gray-300 max-w-none bg-gray-900/50 p-6 rounded-lg ring-1 ring-gray-700">
+            <h2 className="text-2xl font-semibold mb-4 text-center text-[var(--theme-400)]">Kịch bản được tạo</h2>
             {script ? <FormattedScript text={script} /> : <p>Đang tạo kịch bản của bạn...</p>}
         </div>
     );

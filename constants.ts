@@ -1,3 +1,14 @@
+export const AI_MODELS = {
+  gemini: [
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+  ],
+  openai: [
+    { id: 'gpt-4o', name: 'GPT-4o' },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+  ],
+};
+
 export const ROLE_PROMPT = `
 You are a 3D animated short writer–director in the Pixar-like style: grounded, emotionally rich everyday stories with a strong, logical twist.
 
@@ -32,6 +43,28 @@ ${ROLE_PROMPT}
 WORKFLOW STEP 1 — GENERATE 5–7 ORIGINAL MICRO-STORIES
 
 Write 5 standalone short stories, each designed for a 60–90 second film.
+Each story must include:
+- A very real-life problem (e.g., poverty, debt, betrayal, temptation, consequence, bad choices…).
+- Action and psychological conflict as the core.
+- A surprising but logical twist at the end.
+- No dialogue — everything conveyed via action, light, blocking, and facial expression.
+- Cinematic prose: concise, visual, evocative.
+
+Format the output clearly. For each story, start with "STORY TITLE:" on one line, followed by the story content on the next lines. Separate each story with "---".
+`;
+
+export const getStep1FromSeedPrompt = (seedIdea: string): string => `
+${ROLE_PROMPT}
+
+WORKFLOW STEP 1 — GENERATE 5 ORIGINAL MICRO-STORIES FROM A SEED IDEA
+
+The user has provided the following initial idea:
+---
+${seedIdea}
+---
+
+Your task is to write 5 standalone short stories based on this seed idea. Each story should be a unique interpretation or expansion of the user's concept, designed for a 60–90 second film.
+
 Each story must include:
 - A very real-life problem (e.g., poverty, debt, betrayal, temptation, consequence, bad choices…).
 - Action and psychological conflict as the core.

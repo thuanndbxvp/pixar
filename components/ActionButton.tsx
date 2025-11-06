@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface ActionButtonProps {
@@ -13,7 +12,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({ onClick, Icon, text, disabl
     <button
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center justify-center gap-2 px-6 py-3 font-semibold text-white bg-gradient-to-r from-cyan-500 to-purple-600 rounded-lg shadow-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="inline-flex items-center justify-center gap-2 px-6 py-3 font-semibold text-white bg-gradient-to-r from-[var(--theme-500)] to-purple-600 rounded-lg shadow-lg hover:from-[var(--theme-600)] hover:to-purple-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <Icon className="w-5 h-5" />
       <span>{text}</span>

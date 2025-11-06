@@ -1,22 +1,43 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Story, ScenePrompt } from '../types';
-import { ROLE_PROMPT, STEP_1_PROMPT, getStep2And3Prompt, getStep4Prompt } from '../constants';
+import type { Story, ScenePrompt, ApiKeyStore } from '../types';
+import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2And3Prompt, getStep4Prompt } from '../constants';
 
 const getGeminiApiKey = (): string | null => {
-    const storedKeys = localStorage.getItem('apiKeys');
-    if (storedKeys) {
-        return JSON.parse(storedKeys).gemini || null;
-    }
-    return null;
+    const storeStr = localStorage.getItem('apiKeyStore');
+    if (!storeStr) return null;
+    
+    const store: ApiKeyStore = JSON.parse(storeStr);
+    const geminiStore = store.gemini;
+
+    if (!geminiStore || !geminiStore.activeKeyId) return null;
+
+    const activeKey = geminiStore.keys.find(k => k.id === geminiStore.activeKeyId);
+    return activeKey ? activeKey.key : null;
 };
 
 const getAiClient = () => {
     const apiKey = getGeminiApiKey();
     if (!apiKey) {
-        throw new Error("Google Gemini API Key is not set. Please add it in the API Key Management.");
+        throw new Error("Google Gemini API Key chưa được kích hoạt. Vui lòng thêm và kích hoạt một key trong phần Quản lý API.");
     }
     return new GoogleGenAI({ apiKey });
 }
+
+export const validateApiKey = async (apiKey: string): Promise<boolean> => {
+    if (!apiKey) return false;
+    try {
+        const ai = new GoogleGenAI({ apiKey });
+        await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ parts: [{ text: "ping" }] }],
+            config: { maxOutputTokens: 1 }
+        });
+        return true;
+    } catch (error) {
+        console.error("Gemini API Key validation failed:", error);
+        return false;
+    }
+};
 
 // Parser for Step 1
 const parseStories = (responseText: string): Story[] => {
@@ -31,11 +52,11 @@ const parseStories = (responseText: string): Story[] => {
 };
 
 
-export const generateStoryIdeas = async (): Promise<Story[]> => {
+export const generateStoryIdeas = async (model: string): Promise<Story[]> => {
     try {
         const ai = getAiClient();
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: model,
             contents: [{ parts: [{ text: STEP_1_PROMPT }] }],
             config: {
                 systemInstruction: ROLE_PROMPT,
@@ -53,12 +74,35 @@ export const generateStoryIdeas = async (): Promise<Story[]> => {
     }
 };
 
-export const expandStoryAndCreateCast = async (storyContent: string): Promise<string> => {
+export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string): Promise<Story[]> => {
+    try {
+        const ai = getAiClient();
+        const prompt = getStep1FromSeedPrompt(seedIdea);
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: [{ parts: [{ text: prompt }] }],
+            config: {
+                systemInstruction: ROLE_PROMPT,
+                temperature: 0.8,
+            }
+        });
+        const responseText = response.text;
+        return parseStories(responseText);
+    } catch (error) {
+        console.error("Error generating story ideas from seed:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to communicate with Gemini API: ${error.message}`);
+        }
+        throw new Error("Failed to communicate with Gemini API.");
+    }
+};
+
+export const expandStoryAndCreateCast = async (storyContent: string, model: string): Promise<string> => {
     try {
         const ai = getAiClient();
         const prompt = getStep2And3Prompt(storyContent);
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-pro',
+            model: model,
             contents: [{ parts: [{ text: prompt }] }],
              config: {
                 systemInstruction: ROLE_PROMPT,
@@ -75,12 +119,12 @@ export const expandStoryAndCreateCast = async (storyContent: string): Promise<st
     }
 };
 
-export const generateVisualPrompts = async (script: string): Promise<ScenePrompt[]> => {
+export const generateVisualPrompts = async (script: string, model: string): Promise<ScenePrompt[]> => {
     try {
         const ai = getAiClient();
         const prompt = getStep4Prompt(script);
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-pro',
+            model: model,
             contents: [{ parts: [{ text: prompt }] }],
             config: {
                 systemInstruction: ROLE_PROMPT,

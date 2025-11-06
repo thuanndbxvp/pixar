@@ -30,11 +30,11 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading }) => 
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-4 text-center text-cyan-300">Gợi ý Hình ảnh</h2>
+      <h2 className="text-2xl font-semibold mb-4 text-center text-[var(--theme-400)]">Gợi ý Hình ảnh</h2>
       <div className="space-y-8">
         {prompts.map((p) => (
           <div key={p.scene_number} className="bg-gray-800/70 p-5 rounded-lg border border-gray-700">
-            <h3 className="text-xl font-bold text-cyan-400 mb-4">Cảnh {p.scene_number}</h3>
+            <h3 className="text-xl font-bold text-[var(--theme-400)] mb-4">Cảnh {p.scene_number}</h3>
             
             <div className="space-y-4">
                 <div>

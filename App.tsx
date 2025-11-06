@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import * as geminiService from './services/geminiService';
 import * as openaiService from './services/openaiService';
-import type { Story, AppStep, ScenePrompt } from './types';
+import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig } from './types';
 import { Step } from './types';
+import { themeColors } from './themes';
 import StorySelection from './components/StorySelection';
 import ScriptDisplay from './components/ScriptDisplay';
 import PromptDisplay from './components/PromptDisplay';
@@ -10,7 +11,9 @@ import StepIndicator from './components/StepIndicator';
 import LoadingSpinner from './components/LoadingSpinner';
 import ActionButton from './components/ActionButton';
 import ApiKeyModal from './components/ApiKeyModal';
+import ThemePicker from './components/ThemePicker';
 import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon } from '@heroicons/react/24/solid';
+import { AI_MODELS } from './constants';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(Step.IDEATION);
@@ -22,80 +25,106 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [userIdea, setUserIdea] = useState<string>('');
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
-  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
+  const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
+  const [theme, setTheme] = useState<ThemeName>('sky');
+
+  const loadAiConfig = useCallback(() => {
+    const storedConfig = localStorage.getItem('aiConfig');
+    if (storedConfig) {
+      setAiConfig(JSON.parse(storedConfig));
+    } else {
+      // Default to the first Gemini model if nothing is set
+      const defaultConfig: AIConfig = {
+        provider: 'gemini',
+        model: AI_MODELS.gemini[0].id,
+      };
+      setAiConfig(defaultConfig);
+      localStorage.setItem('aiConfig', JSON.stringify(defaultConfig));
+      setIsApiModalOpen(true); // Prompt user to set API key on first visit
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAiConfig();
+  }, [loadAiConfig]);
+
+  const handleApiModalSave = () => {
+    loadAiConfig();
+    setIsApiModalOpen(false);
+  };
 
   const handleGenerateStories = useCallback(async () => {
+    if (!aiConfig) return;
     setIsLoading(true);
     setError(null);
     try {
-      const service = aiProvider === 'gemini' ? geminiService : openaiService;
-      const generatedStories = await service.generateStoryIdeas();
+      const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+      const generatedStories = await service.generateStoryIdeas(aiConfig.model);
       setStories(generatedStories);
       setStep(Step.STORY_SELECTION);
     } catch (err: any) {
-      setError(`Không thể tạo ý tưởng câu chuyện: ${err.message}. Vui lòng kiểm tra API key của bạn và thử lại.`);
+      setError(`Không thể tạo ý tưởng câu chuyện: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [aiProvider]);
+  }, [aiConfig]);
 
   const handleDevelopUserIdea = useCallback(async () => {
-    if (!userIdea.trim()) return;
+    if (!userIdea.trim() || !aiConfig) return;
     
     setIsLoading(true);
     setError(null);
-    setStep(Step.SCRIPT_GENERATION);
     try {
-      const service = aiProvider === 'gemini' ? geminiService : openaiService;
-      const expandedScript = await service.expandStoryAndCreateCast(userIdea);
-      setScript(expandedScript);
-      setSelectedStory({ id: 0, title: "Ý tưởng của người dùng", content: userIdea });
-      setStep(Step.SCRIPT_GENERATED);
+      const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+      const generatedStories = await service.generateStoryIdeasFromSeed(userIdea, aiConfig.model);
+      setStories(generatedStories);
+      setStep(Step.STORY_SELECTION);
     } catch (err: any) {
-      setError(`Không thể phát triển ý tưởng của bạn: ${err.message}. Vui lòng kiểm tra API key của bạn và thử lại.`);
+      setError(`Không thể phát triển ý tưởng của bạn: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
       console.error(err);
       setStep(Step.IDEATION);
     } finally {
       setIsLoading(false);
     }
-  }, [userIdea, aiProvider]);
+  }, [userIdea, aiConfig]);
 
   const handleSelectStory = useCallback(async (story: Story) => {
+    if (!aiConfig) return;
     setSelectedStory(story);
     setIsLoading(true);
     setError(null);
     setStep(Step.SCRIPT_GENERATION);
     try {
-      const service = aiProvider === 'gemini' ? geminiService : openaiService;
-      const expandedScript = await service.expandStoryAndCreateCast(story.content);
+      const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+      const expandedScript = await service.expandStoryAndCreateCast(story.content, aiConfig.model);
       setScript(expandedScript);
       setStep(Step.SCRIPT_GENERATED);
     } catch (err: any) {
-      setError(`Không thể phát triển câu chuyện: ${err.message}. Vui lòng kiểm tra API key của bạn và thử lại.`);
+      setError(`Không thể phát triển câu chuyện: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [aiProvider]);
+  }, [aiConfig]);
 
   const handleGeneratePrompts = useCallback(async () => {
-    if (!script) return;
+    if (!script || !aiConfig) return;
     setIsLoading(true);
     setError(null);
     setStep(Step.PROMPT_GENERATION);
     try {
-      const service = aiProvider === 'gemini' ? geminiService : openaiService;
-      const visualPrompts = await service.generateVisualPrompts(script);
+      const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+      const visualPrompts = await service.generateVisualPrompts(script, aiConfig.model);
       setPrompts(visualPrompts);
       setStep(Step.PROMPTS_GENERATED);
     } catch (err: any) {
-      setError(`Không thể tạo gợi ý hình ảnh: ${err.message}. Vui lòng kiểm tra API key của bạn và thử lại.`);
+      setError(`Không thể tạo gợi ý hình ảnh: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  }, [script, aiProvider]);
+  }, [script, aiConfig]);
   
   const handleReset = () => {
     setStep(Step.IDEATION);
@@ -107,25 +136,36 @@ const App: React.FC = () => {
     setError(null);
     setUserIdea('');
   };
+  
+  const currentTheme = themeColors[theme];
+  const appStyle = {
+    '--theme-400': currentTheme[400],
+    '--theme-500': currentTheme[500],
+    '--theme-600': currentTheme[600],
+  } as React.CSSProperties;
+
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8">
+    <div style={appStyle} className="min-h-screen bg-gray-900 text-gray-100 font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-5xl relative">
         <header className="text-center mb-8">
-           <button onClick={() => setIsApiModalOpen(true)} className="absolute top-0 right-0 flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors z-10">
-              <KeyIcon className="w-5 h-5"/>
-              <span>Quản lý API</span>
-          </button>
+            <div className="absolute top-0 right-0 flex items-center gap-2 z-10">
+               <ThemePicker selectedTheme={theme} onThemeChange={setTheme} />
+               <button onClick={() => setIsApiModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
+                  <KeyIcon className="w-5 h-5"/>
+                  <span>Quản lý API</span>
+              </button>
+           </div>
           <div className="flex items-center justify-center gap-3">
-            <FilmIcon className="h-10 w-10 text-cyan-400"/>
-            <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 text-transparent bg-clip-text">
+            <FilmIcon className="h-10 w-10 text-[var(--theme-400)]"/>
+            <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-[var(--theme-400)] to-purple-500 text-transparent bg-clip-text">
               Trợ lý Sáng tạo Phim hoạt hình
             </h1>
           </div>
           <p className="mt-2 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn theo phong cách Pixar.</p>
         </header>
 
-        <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} />
+        <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} onSave={handleApiModalSave} />
 
         <main className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-black/30 p-6 ring-1 ring-white/10">
           <StepIndicator currentStep={step} />
@@ -138,28 +178,10 @@ const App: React.FC = () => {
             <>
               {step === Step.IDEATION && (
                 <div className="text-center">
-                    <div className="mb-8">
-                        <h3 className="text-lg font-semibold text-center mb-3 text-gray-300">1. Chọn Mô hình AI</h3>
-                        <div className="flex justify-center bg-gray-900 p-1 rounded-lg border border-gray-700 max-w-sm mx-auto">
-                            <button 
-                                onClick={() => setAiProvider('gemini')}
-                                className={`w-1/2 py-2 rounded-md transition-colors text-sm font-medium ${aiProvider === 'gemini' ? 'bg-cyan-500 text-white shadow' : 'text-gray-400 hover:bg-gray-700/50'}`}
-                            >
-                                Google Gemini
-                            </button>
-                            <button 
-                                onClick={() => setAiProvider('openai')}
-                                className={`w-1/2 py-2 rounded-md transition-colors text-sm font-medium ${aiProvider === 'openai' ? 'bg-cyan-500 text-white shadow' : 'text-gray-400 hover:bg-gray-700/50'}`}
-                            >
-                                OpenAI (ChatGPT)
-                            </button>
-                        </div>
-                    </div>
-
-                    <h3 className="text-lg font-semibold text-center mb-3 text-gray-300">2. Cung cấp ý tưởng</h3>
+                    <h3 className="text-lg font-semibold text-center mb-3 text-gray-300">Cung cấp ý tưởng</h3>
                     <p className="text-gray-300 mb-4">Bạn có một ý tưởng sơ khai? Hãy nhập vào bên dưới để AI phát triển nó thành kịch bản.</p>
                     <textarea
-                        className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors mb-4"
+                        className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-gray-200 focus:ring-2 focus:ring-[var(--theme-500)] focus:border-[var(--theme-500)] transition-colors mb-4"
                         rows={4}
                         placeholder="Nhập ý tưởng ban đầu của bạn ở đây... (ví dụ: một chú mèo máy du hành thời gian bị lạc trong thời La Mã cổ đại)"
                         value={userIdea}

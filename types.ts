@@ -1,3 +1,4 @@
+import { themeColors } from "./themes";
 
 export enum Step {
   IDEATION = 'IDEATION',
@@ -21,4 +22,32 @@ export interface ScenePrompt {
   scene_text: string;
   image_prompt: string;
   video_prompt: string;
+}
+
+export type ThemeName = keyof typeof themeColors;
+
+export interface AIModel {
+  id: string;
+  name: string;
+}
+
+export interface AIConfig {
+  provider: 'gemini' | 'openai';
+  model: string;
+}
+
+export interface StoredApiKey {
+  id: string;
+  key: string; 
+  masked: string;
+}
+
+export interface ApiKeyProviderStore {
+  keys: StoredApiKey[];
+  activeKeyId: string | null;
+}
+
+export interface ApiKeyStore {
+  gemini: ApiKeyProviderStore;
+  openai: ApiKeyProviderStore;
 }
