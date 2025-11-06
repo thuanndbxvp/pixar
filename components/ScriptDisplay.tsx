@@ -12,12 +12,20 @@ interface FormattedScriptProps {
 }
 
 const renderLine = (line: string, showAnnotations: boolean, key: string | number) => {
-    // Regex to find annotation like "(...)" at the very end of a line.
-    const annotationRegex = /\s*\(([^)]+)\)$/;
+    // Regex to find annotation like "(...)" at the end of a line, allowing for trailing punctuation.
+    const annotationRegex = /\s*\(([^)]+)\)([:.]*)$/;
     const match = line.match(annotationRegex);
 
-    const mainText = match ? line.replace(annotationRegex, '').trim() : line;
-    const annotationText = match ? match[1] : null;
+    let mainText: string;
+    let annotationText: string | null;
+
+    if (match) {
+        mainText = (line.substring(0, match.index) + (match[2] || '')).trim();
+        annotationText = match[1];
+    } else {
+        mainText = line;
+        annotationText = null;
+    }
 
     const annotationElement = showAnnotations && annotationText ? (
         <div className="mt-1.5 ml-4 bg-gray-800/70 p-3 rounded-lg border border-gray-700">
@@ -25,35 +33,38 @@ const renderLine = (line: string, showAnnotations: boolean, key: string | number
         </div>
     ) : null;
 
-    // Don't render anything for lines that are completely empty
-    if (!mainText.trim()) {
+    // If the line is empty (neither text nor annotation), render nothing.
+    if (!mainText.trim() && !annotationElement) {
         return null;
     }
     
     let mainElement = null;
 
-    if (mainText.toUpperCase().startsWith('CHARACTERS')) {
-        mainElement = <h2 className="text-2xl font-bold text-[var(--theme-400)] mt-6">{mainText}</h2>;
-    } else if (mainText.toUpperCase().startsWith('SCENE')) {
-        mainElement = <h3 className="text-xl font-semibold text-[var(--theme-400)] mt-6">{mainText}</h3>;
-    } else {
-        const labelRegex = /^\s*(Setting|Characters|Action|Emotion\/Lesson):/;
-        const labelMatch = mainText.match(labelRegex);
-        if (labelMatch) {
-            const label = labelMatch[0];
-            const content = mainText.substring(label.length);
-            mainElement = (
-                <p className="text-gray-300 leading-relaxed">
-                    <span className="font-semibold text-gray-200">{label}</span>
-                    {content}
-                </p>
-            );
+    if (mainText.trim()) {
+        if (mainText.toUpperCase().startsWith('CHARACTERS')) {
+            mainElement = <h2 className="text-2xl font-bold text-[var(--theme-400)] mt-6">{mainText}</h2>;
+        } else if (mainText.toUpperCase().startsWith('SCENE')) {
+            mainElement = <h3 className="text-xl font-semibold text-[var(--theme-400)] mt-6">{mainText}</h3>;
         } else {
-             mainElement = (
-                <p className="text-gray-300 leading-relaxed">
-                    {mainText}
-                </p>
-            );
+            // Expanded regex to catch more labels and make them bold
+            const labelRegex = /^\s*(Setting|Characters|Action|Emotion\/Lesson|Species|Detailed Appearance|Visual Style Keywords):/;
+            const labelMatch = mainText.match(labelRegex);
+            if (labelMatch) {
+                const label = labelMatch[0];
+                const content = mainText.substring(label.length);
+                mainElement = (
+                    <p className="text-gray-300 leading-relaxed">
+                        <span className="font-semibold text-gray-200">{label}</span>
+                        {content}
+                    </p>
+                );
+            } else {
+                mainElement = (
+                    <p className="text-gray-300 leading-relaxed">
+                        {mainText}
+                    </p>
+                );
+            }
         }
     }
     
@@ -110,10 +121,16 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading }) => {
     }
 
     const stripAnnotations = (text: string): string => {
-        const annotationRegex = /\s*\([^)]+\)$/;
+        const annotationRegex = /\s*\([^)]+\)([:.]*)$/;
         return text
             .split('\n')
-            .map(line => line.replace(annotationRegex, '').trimEnd())
+            .map(line => {
+                const match = line.match(annotationRegex);
+                if (match) {
+                    return (line.substring(0, match.index) + (match[2] || '')).trimEnd();
+                }
+                return line;
+            })
             .join('\n');
     };
     
