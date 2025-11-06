@@ -187,23 +187,8 @@ const App: React.FC = () => {
 
   return (
     <div style={appStyle} className="min-h-screen bg-gray-900 text-gray-100 font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-5xl relative">
+      <div className="w-full max-w-5xl">
         <header className="text-center mb-8">
-            <div className="absolute top-0 right-0 flex items-center gap-2 z-10">
-               <ThemePicker selectedTheme={theme} onThemeChange={setTheme} />
-                <button onClick={handleSaveSession} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
-                  <BookmarkSquareIcon className="w-5 h-5"/>
-                  <span>Lưu Phiên</span>
-                </button>
-                 <button onClick={() => setIsLibraryModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
-                  <FolderOpenIcon className="w-5 h-5"/>
-                  <span>Thư viện</span>
-                </button>
-               <button onClick={() => setIsApiModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
-                  <KeyIcon className="w-5 h-5"/>
-                  <span>Quản lý API</span>
-              </button>
-           </div>
           <div 
             onClick={handleReset}
             className="inline-block cursor-pointer group"
@@ -213,13 +198,29 @@ const App: React.FC = () => {
             aria-label="Bắt đầu lại dự án"
           >
             <div className="flex items-center justify-center gap-3 group-hover:opacity-80 transition-opacity duration-300">
-              <FilmIcon className="h-10 w-10 text-[var(--theme-400)]"/>
+              <FilmIcon className="h-10 w-10 text-[var(--theme-400)] transform-gpu"/>
               <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-[var(--theme-400)] to-purple-500 text-transparent bg-clip-text">
                 Trợ lý Sáng tạo Phim hoạt hình
               </h1>
             </div>
           </div>
           <p className="mt-4 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn theo phong cách Pixar.</p>
+          
+          <div className="flex justify-center items-center gap-2 mt-6">
+             <button onClick={handleSaveSession} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
+               <BookmarkSquareIcon className="w-5 h-5"/>
+               <span>Lưu Phiên</span>
+             </button>
+              <button onClick={() => setIsLibraryModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
+               <FolderOpenIcon className="w-5 h-5"/>
+               <span>Thư viện</span>
+             </button>
+            <button onClick={() => setIsApiModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
+               <KeyIcon className="w-5 h-5"/>
+               <span>Quản lý API</span>
+           </button>
+           <ThemePicker selectedTheme={theme} onThemeChange={setTheme} />
+        </div>
         </header>
 
         <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} onSave={handleApiModalSave} />
