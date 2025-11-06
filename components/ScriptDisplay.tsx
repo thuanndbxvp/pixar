@@ -4,6 +4,7 @@ import * as geminiService from '../services/geminiService';
 import * as openaiService from '../services/openaiService';
 import type { AIConfig } from '../types';
 import TranslationModal from './TranslationModal';
+import LoadingSpinner from './LoadingSpinner';
 
 interface ScriptDisplayProps {
     script: string;
@@ -84,10 +85,6 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyT
         setIsTranslating(false);
     }, [script]);
 
-    if (isLoading && !script) {
-        return null; 
-    }
-
     const handleDownload = () => {
         if (!script) return;
         
@@ -155,7 +152,7 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyT
         <div className="prose prose-invert prose-p:text-gray-300 max-w-none bg-gray-900/50 p-6 rounded-lg ring-1 ring-gray-700">
             <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
               <h2 className="text-2xl font-semibold text-[var(--theme-400)] m-0">Kịch bản được tạo</h2>
-              {script && (
+              {script && !isLoading && (
                   <div className="flex items-center gap-2">
                        <button
                           onClick={handleTranslate}
@@ -188,7 +185,13 @@ const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading, storyT
                   </div>
               )}
             </div>
-            {script ? <FormattedScript text={script} /> : <p>Đang tạo kịch bản của bạn...</p>}
+            {isLoading ? (
+                <LoadingSpinner />
+            ) : script ? (
+                <FormattedScript text={script} />
+            ) : (
+                <p className="text-gray-400">Kịch bản sẽ xuất hiện ở đây sau khi được tạo.</p>
+            )}
         </div>
         </>
     );

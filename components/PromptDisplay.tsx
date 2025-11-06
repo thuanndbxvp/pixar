@@ -4,6 +4,7 @@ import * as geminiService from '../services/geminiService';
 import * as openaiService from '../services/openaiService';
 import { ClipboardDocumentIcon, CheckIcon, ArrowDownTrayIcon, LanguageIcon } from '@heroicons/react/24/outline';
 import TranslationModal from './TranslationModal';
+import LoadingSpinner from './LoadingSpinner';
 
 interface PromptDisplayProps {
   prompts: ScenePrompt[];
@@ -54,10 +55,6 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         setTranslationError(null);
         setIsTranslating(false);
     }, [prompts]);
-
-    if (isLoading && prompts.length === 0) {
-        return null;
-    }
 
     const handleDownloadCsv = (type: 'all' | 'image' | 'video') => {
         if (prompts.length === 0) return;
@@ -159,7 +156,7 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
     <div>
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
             <h2 className="text-2xl font-semibold text-[var(--theme-400)]">Gợi ý Hình ảnh</h2>
-            {prompts.length > 0 && (
+            {prompts.length > 0 && !isLoading && (
                 <div className="flex items-center gap-2">
                     <button
                           onClick={handleTranslate}
@@ -212,40 +209,44 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                 </div>
             )}
         </div>
-      <div className="space-y-8">
-        {prompts.map((p) => (
-              <div key={p.scene_number} className="bg-gray-800/70 p-5 rounded-lg border border-gray-700">
-                <h3 className="text-xl font-bold text-[var(--theme-400)] mb-4">Cảnh {p.scene_number}</h3>
-                
-                <div className="space-y-4">
-                    <div>
-                        <h4 className="font-semibold text-gray-200 mb-2">Mô tả cảnh</h4>
-                        <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md">
-                            <p className="whitespace-pre-wrap">{p.scene_text}</p>
-                        </div>
-                    </div>
-                     <div>
-                        <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Hình ảnh</h4>
-                        <div className="relative">
-                            <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
-                               <p className="whitespace-pre-wrap">{p.image_prompt}</p>
+        {isLoading ? (
+            <LoadingSpinner />
+        ) : (
+            <div className="space-y-8">
+            {prompts.map((p) => (
+                  <div key={p.scene_number} className="bg-gray-800/70 p-5 rounded-lg border border-gray-700">
+                    <h3 className="text-xl font-bold text-[var(--theme-400)] mb-4">Cảnh {p.scene_number}</h3>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <h4 className="font-semibold text-gray-200 mb-2">Mô tả cảnh</h4>
+                            <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md">
+                                <p className="whitespace-pre-wrap">{p.scene_text}</p>
                             </div>
-                            <CopyButton textToCopy={p.image_prompt} />
                         </div>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Video</h4>
-                        <div className="relative">
-                             <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
-                               <p className="whitespace-pre-wrap">{p.video_prompt}</p>
+                         <div>
+                            <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Hình ảnh</h4>
+                            <div className="relative">
+                                <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
+                                   <p className="whitespace-pre-wrap">{p.image_prompt}</p>
+                                </div>
+                                <CopyButton textToCopy={p.image_prompt} />
                             </div>
-                            <CopyButton textToCopy={p.video_prompt} />
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Video</h4>
+                            <div className="relative">
+                                 <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
+                                   <p className="whitespace-pre-wrap">{p.video_prompt}</p>
+                                </div>
+                                <CopyButton textToCopy={p.video_prompt} />
+                            </div>
                         </div>
                     </div>
-                </div>
-              </div>
-          ))}
-      </div>
+                  </div>
+              ))}
+            </div>
+        )}
     </div>
     </>
   );

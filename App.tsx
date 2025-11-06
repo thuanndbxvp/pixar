@@ -20,7 +20,7 @@ const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(Step.IDEATION);
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedStoryId, setSelectedStoryId] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadingStep, setLoadingStep] = useState<AppStep | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [userIdea, setUserIdea] = useState<string>('');
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeName>('sky');
   const [isJustSaved, setIsJustSaved] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('16:9');
+  const [prevLoadingStep, setPrevLoadingStep] = useState<AppStep | null>(null);
 
   const loadAiConfig = useCallback(() => {
     const storedConfig = localStorage.getItem('aiConfig');
@@ -49,6 +50,25 @@ const App: React.FC = () => {
     loadAiConfig();
   }, [loadAiConfig]);
 
+  useEffect(() => {
+    const baseTitle = 'Trợ lý Sáng tạo Phim hoạt hình';
+    if (loadingStep) {
+        let message = 'AI đang suy nghĩ...';
+        if (loadingStep === Step.IDEATION) message = 'Đang tạo ý tưởng...';
+        if (loadingStep === Step.SCRIPT_GENERATION) message = 'Đang viết kịch bản...';
+        if (loadingStep === Step.PROMPT_GENERATION) message = 'Đang tạo gợi ý...';
+        document.title = `${message} | Trợ lý Sáng tạo`;
+        setPrevLoadingStep(loadingStep);
+    } else if (prevLoadingStep) {
+        document.title = `✅ Hoàn thành! | Trợ lý Sáng tạo`;
+        setPrevLoadingStep(null);
+        setTimeout(() => {
+            document.title = baseTitle;
+        }, 3000);
+    }
+  }, [loadingStep, prevLoadingStep]);
+
+
   const handleApiModalSave = () => {
     loadAiConfig();
     setIsApiModalOpen(false);
@@ -56,7 +76,7 @@ const App: React.FC = () => {
 
   const handleGenerateStories = useCallback(async () => {
     if (!aiConfig) return;
-    setIsLoading(true);
+    setLoadingStep(Step.IDEATION);
     setError(null);
     try {
       const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
@@ -67,14 +87,14 @@ const App: React.FC = () => {
       setError(`Không thể tạo ý tưởng câu chuyện: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
       console.error(err);
     } finally {
-      setIsLoading(false);
+      setLoadingStep(null);
     }
   }, [aiConfig]);
 
   const handleDevelopUserIdea = useCallback(async () => {
     if (!userIdea.trim() || !aiConfig) return;
     
-    setIsLoading(true);
+    setLoadingStep(Step.IDEATION);
     setError(null);
     try {
       const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
@@ -86,7 +106,7 @@ const App: React.FC = () => {
       console.error(err);
       setStep(Step.IDEATION);
     } finally {
-      setIsLoading(false);
+      setLoadingStep(null);
     }
   }, [userIdea, aiConfig]);
 
@@ -102,7 +122,7 @@ const App: React.FC = () => {
     }
 
     // Otherwise, generate the script
-    setIsLoading(true);
+    setLoadingStep(Step.SCRIPT_GENERATION);
     setError(null);
     setStep(Step.SCRIPT_GENERATION);
     try {
@@ -119,7 +139,7 @@ const App: React.FC = () => {
         setError(`Không thể phát triển câu chuyện: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
         console.error(err);
     } finally {
-        setIsLoading(false);
+        setLoadingStep(null);
     }
 }, [aiConfig, aspectRatio]);
 
@@ -129,7 +149,7 @@ const handleGeneratePrompts = useCallback(async () => {
     const story = stories.find(s => s.id === selectedStoryId);
     if (!story || !story.script) return;
     
-    setIsLoading(true);
+    setLoadingStep(Step.PROMPT_GENERATION);
     setError(null);
     setStep(Step.PROMPT_GENERATION);
     try {
@@ -146,7 +166,7 @@ const handleGeneratePrompts = useCallback(async () => {
         setError(`Không thể tạo gợi ý hình ảnh: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
         console.error(err);
     } finally {
-        setIsLoading(false);
+        setLoadingStep(null);
     }
 }, [stories, selectedStoryId, aiConfig, aspectRatio]);
   
@@ -154,7 +174,7 @@ const handleGeneratePrompts = useCallback(async () => {
     setStep(Step.IDEATION);
     setStories([]);
     setSelectedStoryId(null);
-    setIsLoading(false);
+    setLoadingStep(null);
     setError(null);
     setUserIdea('');
     setAspectRatio('16:9');
@@ -218,7 +238,7 @@ const handleGeneratePrompts = useCallback(async () => {
     setTheme(s.theme);
     setAspectRatio(s.aspectRatio || '16:9');
     setError(null);
-    setIsLoading(false);
+    setLoadingStep(null);
     setIsLibraryModalOpen(false); // Close modal on load
   };
 
@@ -317,10 +337,8 @@ const handleGeneratePrompts = useCallback(async () => {
 
           {error && <div className="bg-red-500/20 text-red-300 p-3 rounded-lg my-4 ring-1 ring-red-500/30">{error}</div>}
 
-          {isLoading && <LoadingSpinner />}
-
-          {!isLoading && (
-            <>
+          
+            
               {step === Step.IDEATION && (
                 <div className="text-center">
                     <div className="mb-8 flex justify-center">
@@ -358,7 +376,7 @@ const handleGeneratePrompts = useCallback(async () => {
                         onClick={handleDevelopUserIdea} 
                         Icon={Bars3BottomLeftIcon} 
                         text="Phát triển Ý tưởng" 
-                        disabled={!userIdea.trim()}
+                        disabled={!userIdea.trim() || loadingStep === Step.IDEATION}
                     />
 
                     <div className="relative flex py-5 items-center">
@@ -371,8 +389,10 @@ const handleGeneratePrompts = useCallback(async () => {
                     <ActionButton 
                         onClick={handleGenerateStories} 
                         Icon={SparklesIcon} 
-                        text="Để AI Tạo Ý tưởng" 
+                        text="Để AI Tạo Ý tưởng"
+                        disabled={loadingStep === Step.IDEATION}
                     />
+                    {loadingStep === Step.IDEATION && <LoadingSpinner />}
                 </div>
               )}
 
@@ -381,7 +401,7 @@ const handleGeneratePrompts = useCallback(async () => {
               )}
               
               {(step === Step.SCRIPT_GENERATION || step === Step.SCRIPT_GENERATED) && (
-                 <ScriptDisplay script={script} isLoading={isLoading} storyTitle={selectedStory?.title || null} aiConfig={aiConfig} />
+                 <ScriptDisplay script={script} isLoading={loadingStep === Step.SCRIPT_GENERATION} storyTitle={selectedStory?.title || null} aiConfig={aiConfig} />
               )}
               
               {step === Step.SCRIPT_GENERATED && (
@@ -391,7 +411,7 @@ const handleGeneratePrompts = useCallback(async () => {
               )}
 
               {(step === Step.PROMPT_GENERATION || step === Step.PROMPTS_GENERATED) && (
-                 <PromptDisplay prompts={prompts} isLoading={isLoading} storyTitle={selectedStory?.title || null} aiConfig={aiConfig} />
+                 <PromptDisplay prompts={prompts} isLoading={loadingStep === Step.PROMPT_GENERATION} storyTitle={selectedStory?.title || null} aiConfig={aiConfig} />
               )}
 
               {step === Step.PROMPTS_GENERATED && (
@@ -405,8 +425,6 @@ const handleGeneratePrompts = useCallback(async () => {
                     </button>
                  </div>
               )}
-            </>
-          )}
         </main>
       </div>
     </div>
