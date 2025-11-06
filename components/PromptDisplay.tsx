@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { ScenePrompt } from '../types';
 import { ClipboardDocumentIcon, CheckIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
@@ -56,23 +56,33 @@ const parseAnnotatedText = (text: string): { main: string; annotation: string } 
 
 const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, storyTitle }) => {
     const [showAnnotations, setShowAnnotations] = useState(false);
+    const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
+    const downloadMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
+                setIsDownloadMenuOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     if (isLoading && prompts.length === 0) {
         return null;
     }
 
-    const handleDownloadExcel = () => {
+    const handleDownloadCsv = () => {
         if (prompts.length === 0) return;
 
-        // Using semicolon as a delimiter for better Excel compatibility in many regions (especially non-US).
         const DELIMITER = ';';
 
         const escapeCsvField = (field: string): string => {
-            if (typeof field !== 'string') {
-                return '';
-            }
-            let result = field.replace(/"/g, '""'); // Escape double quotes
-            // If the field contains the delimiter, a newline, or a double quote, it must be enclosed in double quotes.
+            if (typeof field !== 'string') return '';
+            let result = field.replace(/"/g, '""');
             if (result.includes(DELIMITER) || result.includes('\n') || result.includes('"')) {
                 result = `"${result}"`;
             }
@@ -98,7 +108,6 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
             csvRows.push(row.join(DELIMITER));
         });
 
-        // Add BOM for proper UTF-8 handling in Excel
         const csvString = '\uFEFF' + csvRows.join('\n');
         const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -106,16 +115,41 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         link.href = url;
         
         const cleanTitle = storyTitle ? storyTitle.split('(')[0].trim() : 'prompts';
-        const filenameBase = cleanTitle
-            .replace(/\s+/g, '_')
-            .replace(/[^a-zA-Z0-9_]/g, '')
-            .toLowerCase();
-
+        const filenameBase = cleanTitle.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
         link.setAttribute('download', `pixar_prompts_${filenameBase}.csv`);
+        
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        setIsDownloadMenuOpen(false);
+    };
+
+    const handleDownloadPrompts = (type: 'image' | 'video') => {
+        if (prompts.length === 0) return;
+
+        const promptsToDownload = prompts.map(p => {
+            const promptText = type === 'image' ? p.image_prompt : p.video_prompt;
+            const { main } = parseAnnotatedText(promptText);
+            return `--- SCENE ${p.scene_number} ---\n${main}`;
+        }).join('\n\n');
+        
+        const blob = new Blob([promptsToDownload], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+
+        const cleanTitle = storyTitle ? storyTitle.split('(')[0].trim() : 'prompts';
+        const filenameBase = cleanTitle.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+
+        const promptType = type === 'image' ? 'image_prompts' : 'video_prompts';
+        link.download = `pixar_${promptType}_${filenameBase}.txt`;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        setIsDownloadMenuOpen(false);
     };
 
   return (
@@ -134,14 +168,46 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                     >
                         Chú thích tiếng Việt
                     </button>
-                    <button
-                        onClick={handleDownloadExcel}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
-                        title="Tải về file Excel (CSV)"
-                    >
-                        <ArrowDownTrayIcon className="w-5 h-5" />
-                        <span>Tải về Excel</span>
-                    </button>
+                    <div className="relative" ref={downloadMenuRef}>
+                        <button
+                          onClick={() => setIsDownloadMenuOpen(prev => !prev)}
+                          className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
+                          title="Tải về"
+                        >
+                          <ArrowDownTrayIcon className="w-5 h-5" />
+                          <span>Tải về</span>
+                        </button>
+                        {isDownloadMenuOpen && (
+                          <div className="absolute top-full right-0 mt-2 w-max bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 p-1">
+                            <ul>
+                              <li>
+                                <button
+                                  onClick={handleDownloadCsv}
+                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
+                                >
+                                  Tải về Excel (CSV)
+                                </button>
+                              </li>
+                              <li>
+                                <button
+                                  onClick={() => handleDownloadPrompts('image')}
+                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
+                                >
+                                  Tải về Prompt Ảnh (.txt)
+                                </button>
+                              </li>
+                              <li>
+                                <button
+                                  onClick={() => handleDownloadPrompts('video')}
+                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
+                                >
+                                  Tải về Prompt Video (.txt)
+                                </button>
+                              </li>
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                 </div>
             )}
         </div>
