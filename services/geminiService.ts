@@ -1,0 +1,95 @@
+
+import { GoogleGenAI, Type } from "@google/genai";
+import type { Story, ScenePrompt } from '../types';
+import { ROLE_PROMPT, STEP_1_PROMPT, getStep2And3Prompt, getStep4Prompt } from '../constants';
+
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+    throw new Error("API_KEY environment variable not set");
+}
+
+const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+// Parser for Step 1
+const parseStories = (responseText: string): Story[] => {
+    const storiesRaw = responseText.split('---').filter(s => s.trim());
+    return storiesRaw.map((storyText, index) => {
+        const lines = storyText.trim().split('\n');
+        const titleLine = lines.find(line => line.toUpperCase().startsWith('STORY TITLE:'));
+        const title = titleLine ? titleLine.replace(/STORY TITLE:/i, '').trim() : `Story ${index + 1}`;
+        const content = lines.filter(line => !line.toUpperCase().startsWith('STORY TITLE:')).join('\n').trim();
+        return { id: index, title, content };
+    });
+};
+
+
+export const generateStoryIdeas = async (): Promise<Story[]> => {
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ parts: [{ text: STEP_1_PROMPT }] }],
+            config: {
+                systemInstruction: ROLE_PROMPT,
+                temperature: 0.8,
+            }
+        });
+        const responseText = response.text;
+        return parseStories(responseText);
+    } catch (error) {
+        console.error("Error generating story ideas:", error);
+        throw new Error("Failed to communicate with Gemini API.");
+    }
+};
+
+export const expandStoryAndCreateCast = async (storyContent: string): Promise<string> => {
+    try {
+        const prompt = getStep2And3Prompt(storyContent);
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-pro',
+            contents: [{ parts: [{ text: prompt }] }],
+             config: {
+                systemInstruction: ROLE_PROMPT,
+                temperature: 0.7,
+            }
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error expanding story:", error);
+        throw new Error("Failed to communicate with Gemini API.");
+    }
+};
+
+export const generateVisualPrompts = async (script: string): Promise<ScenePrompt[]> => {
+    try {
+        const prompt = getStep4Prompt(script);
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-pro',
+            contents: [{ parts: [{ text: prompt }] }],
+            config: {
+                systemInstruction: ROLE_PROMPT,
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            scene_number: { type: Type.INTEGER },
+                            scene_text: { type: Type.STRING },
+                            image_prompt: { type: Type.STRING },
+                            video_prompt: { type: Type.STRING },
+                        },
+                         required: ["scene_number", "scene_text", "image_prompt", "video_prompt"]
+                    }
+                }
+            }
+        });
+        
+        const jsonText = response.text.trim();
+        const prompts = JSON.parse(jsonText);
+        return prompts;
+
+    } catch (error) {
+        console.error("Error generating visual prompts:", error);
+        throw new Error("Failed to communicate with Gemini API or parse its JSON response.");
+    }
+};
