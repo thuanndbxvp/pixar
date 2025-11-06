@@ -29,24 +29,26 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         return null;
     }
 
-    const escapeCsvField = (field: string): string => {
-        if (typeof field !== 'string') {
-            return '';
-        }
-        // Replace any double quotes with two double quotes
-        let result = field.replace(/"/g, '""');
-        // If the field contains a comma, newline, or double quote, wrap it in double quotes
-        if (result.search(/("|,|\n)/g) >= 0) {
-            result = `"${result}"`;
-        }
-        return result;
-    };
-
     const handleDownloadExcel = () => {
         if (prompts.length === 0) return;
 
-        const headers = ['"Mô tả cảnh"', '"Prompt IMG"', '"Prompt Video"'];
-        const csvRows = [headers.join(',')];
+        // Using semicolon as a delimiter for better Excel compatibility in many regions (especially non-US).
+        const DELIMITER = ';';
+
+        const escapeCsvField = (field: string): string => {
+            if (typeof field !== 'string') {
+                return '';
+            }
+            let result = field.replace(/"/g, '""'); // Escape double quotes
+            // If the field contains the delimiter, a newline, or a double quote, it must be enclosed in double quotes.
+            if (result.includes(DELIMITER) || result.includes('\n') || result.includes('"')) {
+                result = `"${result}"`;
+            }
+            return result;
+        };
+
+        const headers = ['Mô tả cảnh', 'Prompt IMG', 'Prompt Video'];
+        const csvRows = [headers.join(DELIMITER)];
 
         prompts.forEach(p => {
             const row = [
@@ -54,7 +56,7 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                 escapeCsvField(p.image_prompt),
                 escapeCsvField(p.video_prompt)
             ];
-            csvRows.push(row.join(','));
+            csvRows.push(row.join(DELIMITER));
         });
 
         // Add BOM for proper UTF-8 handling in Excel
