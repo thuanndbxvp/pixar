@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowDownTrayIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 interface ScriptDisplayProps {
     script: string;
@@ -78,26 +79,71 @@ const FormattedScript: React.FC<FormattedScriptProps> = ({ text, showAnnotations
 
 const ScriptDisplay: React.FC<ScriptDisplayProps> = ({ script, isLoading }) => {
     const [showAnnotations, setShowAnnotations] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
 
     if (isLoading && !script) {
         return null; // Don't show anything until loading is done or script is available
     }
+    
+    const handleDownload = () => {
+        if (!script) return;
+        const blob = new Blob([script], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'kich-ban-phim-hoat-hinh.txt';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+    
+    const handleCopy = () => {
+        if (!script) return;
+        navigator.clipboard.writeText(script).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2500);
+        }).catch(err => {
+            console.error('Không thể sao chép văn bản: ', err);
+            alert('Không thể sao chép văn bản. Vui lòng thử lại.');
+        });
+    };
 
     return (
         <div className="prose prose-invert prose-p:text-gray-300 max-w-none bg-gray-900/50 p-6 rounded-lg ring-1 ring-gray-700">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
               <h2 className="text-2xl font-semibold text-[var(--theme-400)] m-0">Kịch bản được tạo</h2>
               {script && (
-                  <button
-                      onClick={() => setShowAnnotations(!showAnnotations)}
-                      className={`px-3 py-1.5 text-sm rounded-md transition-colors font-medium ${
-                        showAnnotations 
-                          ? 'bg-[var(--theme-500)] text-white' 
-                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                      }`}
-                  >
-                      Chú thích tiếng Việt
-                  </button>
+                  <div className="flex items-center gap-2">
+                      <button
+                          onClick={() => setShowAnnotations(!showAnnotations)}
+                          className={`px-3 py-1.5 text-sm rounded-md transition-colors font-medium ${
+                            showAnnotations 
+                              ? 'bg-[var(--theme-500)] text-white' 
+                              : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                          }`}
+                      >
+                          Chú thích tiếng Việt
+                      </button>
+                      <button
+                          onClick={handleDownload}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
+                          title="Tải kịch bản dưới dạng tệp .txt"
+                      >
+                          <ArrowDownTrayIcon className="w-4 h-4" />
+                      </button>
+                       <button
+                          onClick={handleCopy}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
+                          title="Sao chép toàn bộ kịch bản"
+                      >
+                          {isCopied ? (
+                              <CheckIcon className="w-4 h-4 text-green-400" />
+                          ) : (
+                              <ClipboardDocumentIcon className="w-4 h-4" />
+                          )}
+                      </button>
+                  </div>
               )}
             </div>
             {script ? <FormattedScript text={script} showAnnotations={showAnnotations} /> : <p>Đang tạo kịch bản của bạn...</p>}
