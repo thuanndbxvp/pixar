@@ -228,7 +228,7 @@ const App: React.FC = () => {
               </h1>
             </div>
           </div>
-          <p className="mt-4 text-lg text-gray-400">Your AI partner for creating Pixar-style short animated films.</p>
+          <p className="mt-4 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn phong cách Pixar.</p>
           
           <div className="flex justify-center items-center gap-2 mt-6">
              <button
@@ -245,22 +245,22 @@ const App: React.FC = () => {
                 {isJustSaved ? (
                     <>
                     <CheckIcon className="w-5 h-5" />
-                    <span>Saved</span>
+                    <span>Đã lưu</span>
                     </>
                 ) : (
                     <>
                     <BookmarkSquareIcon className="w-5 h-5" />
-                    <span>Save Session</span>
+                    <span>Lưu Phiên</span>
                     </>
                 )}
             </button>
               <button onClick={() => setIsLibraryModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                <FolderOpenIcon className="w-5 h-5"/>
-               <span>Library</span>
+               <span>Thư viện</span>
              </button>
             <button onClick={() => setIsApiModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                <KeyIcon className="w-5 h-5"/>
-               <span>Manage API</span>
+               <span>Quản lý API</span>
            </button>
            <ThemePicker selectedTheme={theme} onThemeChange={setTheme} />
         </div>
