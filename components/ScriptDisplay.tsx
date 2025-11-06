@@ -17,44 +17,54 @@ const renderLine = (line: string, showAnnotations: boolean, key: string | number
     const match = line.match(annotationRegex);
 
     const mainText = match ? line.replace(annotationRegex, '').trim() : line;
-    const annotationText = match ? `(${match[1]})` : null;
+    const annotationText = match ? match[1] : null;
 
-    const annotationSpan = showAnnotations && annotationText ? (
-        <span className="text-[var(--theme-400)]/90 ml-2 italic">{annotationText}</span>
+    const annotationElement = showAnnotations && annotationText ? (
+        <div className="mt-1.5 ml-4 bg-gray-800/70 p-3 rounded-lg border border-gray-700">
+            <p className="text-sm italic text-[var(--theme-400)] opacity-95 leading-relaxed">{annotationText}</p>
+        </div>
     ) : null;
 
-    // Special styling for major headings
-    if (mainText.toUpperCase().startsWith('CHARACTERS')) {
-        return <h2 key={key} className="text-2xl font-bold text-[var(--theme-400)] mt-4 mb-2">{mainText}{annotationSpan}</h2>;
-    }
-    if (mainText.toUpperCase().startsWith('SCENE')) {
-        return <h3 key={key} className="text-xl font-semibold text-[var(--theme-400)] mt-4 mb-2">{mainText}{annotationSpan}</h3>;
-    }
-
-    // Special styling for labeled lines like "Setting:", "Action:"
-    const labelRegex = /^\s*(Setting|Characters|Action|Emotion\/Lesson):/;
-    const labelMatch = mainText.match(labelRegex);
-    if (labelMatch) {
-        const label = labelMatch[0];
-        const content = mainText.substring(label.length);
-        return (
-            <p key={key} className="text-gray-300">
-                <span className="font-semibold text-gray-200">{label}</span>
-                {content}
-                {annotationSpan}
-            </p>
-        );
+    // Don't render anything for lines that are completely empty
+    if (!mainText.trim()) {
+        return null;
     }
     
-    // Default paragraph rendering
-    if (!mainText.trim()) return null; // Don't render empty lines
+    let mainElement = null;
+
+    if (mainText.toUpperCase().startsWith('CHARACTERS')) {
+        mainElement = <h2 className="text-2xl font-bold text-[var(--theme-400)] mt-6">{mainText}</h2>;
+    } else if (mainText.toUpperCase().startsWith('SCENE')) {
+        mainElement = <h3 className="text-xl font-semibold text-[var(--theme-400)] mt-6">{mainText}</h3>;
+    } else {
+        const labelRegex = /^\s*(Setting|Characters|Action|Emotion\/Lesson):/;
+        const labelMatch = mainText.match(labelRegex);
+        if (labelMatch) {
+            const label = labelMatch[0];
+            const content = mainText.substring(label.length);
+            mainElement = (
+                <p className="text-gray-300 leading-relaxed">
+                    <span className="font-semibold text-gray-200">{label}</span>
+                    {content}
+                </p>
+            );
+        } else {
+             mainElement = (
+                <p className="text-gray-300 leading-relaxed">
+                    {mainText}
+                </p>
+            );
+        }
+    }
+    
     return (
-        <p key={key} className="text-gray-300">
-            {mainText}
-            {annotationSpan}
-        </p>
+        <div key={key} className="mb-2">
+            {mainElement}
+            {annotationElement}
+        </div>
     );
 };
+
 
 const FormattedScript: React.FC<FormattedScriptProps> = ({ text, showAnnotations }) => {
   const parts = text.split(/(\n---\n)/g); // Split by separator but keep it
