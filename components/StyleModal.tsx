@@ -13,6 +13,8 @@ interface StyleModalProps {
   currentStyle: VisualStyle;
   aiConfig: AIConfig | null;
   addToast: (message: string, subMessage?: string, type?: Toast['type']) => void;
+  aspectRatio: '9:16' | '16:9';
+  onAspectRatioChange: (ratio: '9:16' | '16:9') => void;
 }
 
 const fileToBas64 = (file: File): Promise<{ base64: string; mimeType: string }> => {
@@ -49,7 +51,7 @@ const characterToVisualStyle = (char: LibraryCharacter): VisualStyle => {
 };
 
 
-const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, currentStyle, aiConfig, addToast }) => {
+const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, currentStyle, aiConfig, addToast, aspectRatio, onAspectRatioChange }) => {
   const [activeTab, setActiveTab] = useState<'select' | 'upload' | 'library' | 'characterLibrary'>('select');
   const [selectedStyle, setSelectedStyle] = useState<VisualStyle>(currentStyle);
   const [hoveredStyle, setHoveredStyle] = useState<VisualStyle | null>(null);
@@ -468,17 +470,29 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
 
         </div>
 
-        <div className="p-6 bg-gray-900/50 rounded-b-2xl flex justify-between items-center">
-          <div className="text-sm text-gray-400 flex-1 min-w-0">
-             <span className="truncate">
-                {selectedStyle.type === 'character' ? 'Nhân vật đang chọn: ' : 'Phong cách đang chọn: '}
-                <span className="font-semibold text-[var(--theme-400)]">{selectedStyle.name}</span>
-            </span>
-          </div>
-          <div className="flex gap-4">
-            <button onClick={onClose} className="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors">Hủy</button>
-            <button onClick={handleSaveClick} className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">Lưu & Đóng</button>
-          </div>
+        <div className="p-6 bg-gray-900/50 rounded-b-2xl flex justify-between items-center gap-4">
+            <div className="flex items-center gap-3" style={{ flexBasis: '280px' }}>
+                <label htmlFor="aspectRatioModal" className="text-sm font-medium text-gray-300 whitespace-nowrap">Định dạng Khung hình</label>
+                <select
+                id="aspectRatioModal"
+                value={aspectRatio}
+                onChange={(e) => onAspectRatioChange(e.target.value as '9:16' | '16:9')}
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-[var(--theme-500)] focus:border-[var(--theme-500)]"
+                >
+                <option value="16:9">Ngang (16:9)</option>
+                <option value="9:16">Dọc (9:16)</option>
+                </select>
+            </div>
+            <div className="text-sm text-gray-400 flex-1 min-w-0 text-center">
+                <span className="truncate">
+                    {selectedStyle.type === 'character' ? 'Nhân vật đang chọn: ' : 'Phong cách đang chọn: '}
+                    <span className="font-semibold text-[var(--theme-400)]">{selectedStyle.name}</span>
+                </span>
+            </div>
+            <div className="flex gap-4">
+                <button onClick={onClose} className="px-6 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors">Hủy</button>
+                <button onClick={handleSaveClick} className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">Lưu & Đóng</button>
+            </div>
         </div>
       </div>
     </div>

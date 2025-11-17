@@ -443,6 +443,8 @@ const App: React.FC = () => {
             currentStyle={visualStyle}
             aiConfig={aiConfig}
             addToast={addToast}
+            aspectRatio={aspectRatio}
+            onAspectRatioChange={setAspectRatio}
         />
 
         <main className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-black/30 p-6 ring-1 ring-white/10">
@@ -459,21 +461,6 @@ const App: React.FC = () => {
             
               {step === Step.IDEATION && (
                  <div>
-                    <div className="mb-8 flex justify-center">
-                        <div className="max-w-xs w-full">
-                            <label htmlFor="aspectRatio" className="block text-sm font-medium text-gray-300 mb-2 text-center">Định dạng Khung hình</label>
-                            <select
-                                id="aspectRatio"
-                                value={aspectRatio}
-                                onChange={(e) => setAspectRatio(e.target.value as '9:16' | '16:9')}
-                                className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:ring-2 focus:ring-[var(--theme-500)] focus:border-[var(--theme-500)]"
-                            >
-                                <option value="16:9">Ngang (16:9)</option>
-                                <option value="9:16">Dọc (9:16)</option>
-                            </select>
-                        </div>
-                    </div>
-
                     <div className="relative flex py-5 items-center">
                         <div className="flex-grow border-t border-gray-700"></div>
                         <span className="flex-shrink mx-4 text-gray-500 text-sm">BƯỚC 1: CUNG CẤP Ý TƯỞNG</span>
