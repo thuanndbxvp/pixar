@@ -15,37 +15,37 @@ export const PREDEFINED_STYLES: VisualStyle[] = [
     {
         type: 'predefined',
         name: 'Cổ điển Pixar',
-        description: `Style: Classic Pixar 3D — anthropomorphic cat with human-proportioned body and cat head/ears/tail. Ultra detailed, cinematic soft lighting, and emotional realism. Backgrounds are lively urban or indoor spaces.`,
+        description: `Style: Classic Pixar 3D — anthropomorphic character with human-proportioned body. Ultra detailed, cinematic soft lighting, and emotional realism. Backgrounds are lively urban or indoor spaces.`,
         imageUrl: 'https://i.postimg.cc/JyL97QrN/1-Phong-cach-Co-dien-Pixar.jpg'
     },
     {
         type: 'predefined',
         name: 'Hoạt hình Đất sét Kỹ thuật số',
-        description: `Style: Digital claymation, Aardman-style. Anthropomorphic cat with a tactile, slightly imperfect, handcrafted feel. Textured surfaces with visible thumbprints. Warm, focused lighting. Stop-motion-like movement.`,
+        description: `Style: Digital claymation, Aardman-style. Anthropomorphic character with a tactile, slightly imperfect, handcrafted feel. Textured surfaces with visible thumbprints. Warm, focused lighting. Stop-motion-like movement.`,
         imageUrl: 'https://i.postimg.cc/hz46TP7h/2-Phong-cach-Hoat-hinh-Dat-set-Ky-thuat-so-(Aardman).jpg'
     },
     {
         type: 'predefined',
         name: 'Màu nước Sống động',
-        description: `Style: Living watercolor, Ghibli-inspired. Anthropomorphic cat rendered with soft, bleeding watercolor textures and visible brush strokes. Rich, vibrant color palette. Dreamy, ethereal lighting.`,
+        description: `Style: Living watercolor, Ghibli-inspired. Anthropomorphic character rendered with soft, bleeding watercolor textures and visible brush strokes. Rich, vibrant color palette. Dreamy, ethereal lighting.`,
         imageUrl: 'https://i.postimg.cc/zbD6KXR7/3-Phong-cach-Mau-nuoc-Song-dong-(Ghibli-inspired-watercolor).jpg'
     },
     {
         type: 'predefined',
         name: 'Cel-Shaded Hoạt hình Nhật Bản',
-        description: `Style: Anime cel-shaded. Anthropomorphic cat with crisp black outlines, flat color fills, and sharp, stylized shadows. Dynamic, expressive facial features and energetic action lines. Bright, high-contrast lighting.`,
+        description: `Style: Anime cel-shaded. Anthropomorphic character with crisp black outlines, flat color fills, and sharp, stylized shadows. Dynamic, expressive facial features and energetic action lines. Bright, high-contrast lighting.`,
         imageUrl: 'https://i.postimg.cc/1nR2w5Np/4-Phong-cach-Cel-Shaded-Hoat-hinh-Nhat-Ban.jpg'
     },
     {
         type: 'predefined',
         name: 'Đồ họa Thấp Poly Tối giản',
-        description: `Style: Minimalist low-poly. Anthropomorphic cat constructed from visible geometric polygons. Flat, solid color palettes. Clean, abstract environments. Simple, direct lighting with hard-edged shadows.`,
+        description: `Style: Minimalist low-poly. Anthropomorphic character constructed from visible geometric polygons. Flat, solid color palettes. Clean, abstract environments. Simple, direct lighting with hard-edged shadows.`,
         imageUrl: 'https://i.postimg.cc/gwH1x6rn/5-Phong-cach-Do-hoa-Thap-Poly-Toi-gian.jpg'
     },
     {
         type: 'predefined',
         name: 'Đen trắng Cổ điển',
-        description: `Style: Vintage black-and-white, 1930s rubber hose animation style. Anthropomorphic cat with simple, looping animations, exaggerated movements, and pie-eyes. High-contrast monochrome palette. Film grain and subtle light flicker.`,
+        description: `Style: Vintage black-and-white, 1930s rubber hose animation style. Anthropomorphic character with simple, looping animations, exaggerated movements, and pie-eyes. High-contrast monochrome palette. Film grain and subtle light flicker.`,
         imageUrl: 'https://i.postimg.cc/G83VGhsy/6-Phong-cach-Den-trang-Co-dien-(1930s-Rubber-Hose).jpg'
     }
 ];
@@ -72,20 +72,21 @@ GLOBAL RULES:
 
 const characterSchema = (styleDescription: string) => `
 CHARACTER SCHEMA (to be used after story selection):
-Character Name: [A fitting proper name, e.g., Neko, Mimi, Shadow…]
-Species: Anthropomorphic cat.
+Character Name: [A fitting proper name, e.g., Buster, Pip, Sparky…]
+Species: [The species of the character as identified from the story, e.g., Anthropomorphic dog, Elephant, Chicken, Tiny Robot]
 Detailed Appearance:
-Human-proportioned body, cat head; cat ears, large expressive eyes, soft expressive tail.
-Fine, detailed fur; materials and lighting feel consistent with the main style.
+Human-proportioned body with species-appropriate head, ears, tail, etc.
+Large expressive eyes, soft expressive features.
+Fine, detailed fur/skin/feathers/metal; materials and lighting feel consistent with the main style.
 Everyday clothing: denim jacket, hoodie dress, shirt, shorts, etc.
-Soft, realistic light response on skin/fur.
+Soft, realistic light response on skin/fur/surface.
 Visual Style Keywords: ${styleDescription}
 
 Example Character Description:
-Neko (anthropomorphic gray cat):
-Slender build; ash-gray fur cat head; pointed ears; long thin tail.
-Wears a faded, scuffed denim jacket and dark khaki pants.
-Large amber eyes; slightly tousled fur; warm reflective lighting.
+Buster (anthropomorphic beagle dog):
+Stocky build; brown and white fur; long floppy ears; short, excited tail.
+Wears a worn red collar but no other clothes.
+Large, curious brown eyes; slightly damp fur from the rain; warm reflective lighting.
 Style: ${styleDescription}
 `;
 
@@ -122,6 +123,7 @@ Each story must include:
 - A surprising but logical twist at the end.
 - No dialogue — everything conveyed via action, light, blocking, and facial expression.
 - Cinematic prose: concise, visual, evocative.
+- The main character can be any kind of animal or creature.
 
 Format the output clearly. For each story, start with "STORY TITLE:" on one line, followed by the story content on the next lines. Separate each story with "---".
 `;
@@ -142,6 +144,7 @@ Each story must include:
 - A surprising but logical twist at theend.
 - No dialogue — everything conveyed via action, light, blocking, and facial expression.
 - Cinematic prose: concise, visual, evocative.
+- The main character can be any kind of animal or creature that fits the theme.
 
 Format the output clearly. For each story, start with "STORY TITLE:" on one line, followed by the story content on the next lines. Separate each story with "---".
 `;
@@ -167,22 +170,28 @@ The expanded story should be about 300-400 words.
 `;
 
 export const getStep3Prompt = (expandedStory: string, aspectRatio: '9:16' | '16:9'): string => `
-WORKFLOW STEP 3 — LOCK CAST & CREATE SCRIPT
+WORKFLOW STEP 3 — DEFINE CHARACTER & CREATE SCRIPT
 
 The user has approved the following expanded story:
 ---
 ${expandedStory}
 ---
 
-Your tasks are:
-1.  **LOCK THE CAST:** Create a fixed character set for this story. Follow the CHARACTER SCHEMA exactly. Present the cast first under a "CHARACTERS" heading.
-2.  **CREATE THE SCRIPT:** Break down the expanded story into 10–15 cinematic scenes.
-    **IMPORTANT**: All scenes must be framed and described with a **${aspectRatio}** aspect ratio in mind (${aspectRatio === '9:16' ? 'vertical' : 'horizontal'} format).
-    For each scene, provide:
-    - Setting: place, time of day, lighting, atmosphere.
-    - Characters: repeat the full, fixed description for any character who appears.
-    - Action: blocking, micro-movements, interactions, and lighting behavior.
-    - Emotion/Lesson: internal psychology or implicit theme.
+Your tasks are, in this exact order:
+1.  **ANALYZE & DEFINE THE CHARACTER(S):**
+    - Carefully read the expanded story to identify the main character(s).
+    - Determine their species (e.g., dog, elephant, chicken, robot etc.) based on the narrative.
+    - For each character, create a detailed description using the provided CHARACTER SCHEMA. The 'Species' field MUST be filled in based on your analysis of the story.
+    - Present the final cast first under a "CHARACTERS" heading. This cast is now LOCKED and must be used consistently.
+
+2.  **CREATE THE SCRIPT:**
+    - After defining the character(s), break down the expanded story into 10–15 cinematic scenes.
+    - **IMPORTANT**: All scenes must be framed and described with a **${aspectRatio}** aspect ratio in mind (${aspectRatio === '9:16' ? 'vertical' : 'horizontal'} format).
+    - For each scene, provide:
+        - Setting: place, time of day, lighting, atmosphere.
+        - Characters: repeat the full, locked description for any character who appears.
+        - Action: blocking, micro-movements, interactions, and lighting behavior.
+        - Emotion/Lesson: internal psychology or implicit theme.
 
 Structure the output clearly. First, list the characters under "CHARACTERS". Then, for each scene, use the format "SCENE [Number]:" followed by the details. Separate each scene with "---".
 `;
@@ -272,7 +281,7 @@ You must return a single JSON object. Do not output any other text or markdown. 
 
 export const ANALYZE_IMAGE_STYLE_PROMPT = `
 Analyze the provided image and describe its visual style in a concise paragraph. 
-Focus on the key artistic elements that another AI could use to replicate this style for a 3D animated short film featuring an anthropomorphic cat character.
+Focus on the key artistic elements that another AI could use to replicate this style for a 3D animated short film featuring an anthropomorphic character.
 Cover these aspects:
 - Overall Mood/Atmosphere (e.g., whimsical, somber, futuristic)
 - Art Style (e.g., realistic, cel-shaded, painterly, claymation, low-poly)
