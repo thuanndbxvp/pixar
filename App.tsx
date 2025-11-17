@@ -45,12 +45,14 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeName>('sky');
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('16:9');
   const [prevLoadingStep, setPrevLoadingStep] = useState<AppStep | null>(null);
-  const [mood, setMood] = useState<string>(moodOptions[0].value);
+  const [mood, setMood] = useState<string>(moodOptions[2].value);
   const [uploadedScript, setUploadedScript] = useState<string>('');
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [visualStyle, setVisualStyle] = useState<VisualStyle>(PREDEFINED_STYLES[0]);
   const [selectedCharacter, setSelectedCharacter] = useState<LibraryCharacter | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isFromUserSeed, setIsFromUserSeed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const removeToast = (id: string) => {
@@ -132,9 +134,10 @@ const App: React.FC = () => {
   const handleGenerateStories = useCallback(async () => {
     if (!aiConfig) return;
     setLoadingStep(Step.IDEATION);
+    setIsFromUserSeed(false);
     try {
       const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-      const generatedStories = await service.generateStoryIdeas(aiConfig.model, mood);
+      const generatedStories = await service.generateStoryIdeas(aiConfig.model, mood, 2);
       setStories(generatedStories);
       setStep(Step.STORY_SELECTION);
     } catch (err: any) {
@@ -148,9 +151,10 @@ const App: React.FC = () => {
     if (!userIdea.trim() || !aiConfig) return;
     
     setLoadingStep(Step.IDEATION);
+    setIsFromUserSeed(true);
     try {
       const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-      const generatedStories = await service.generateStoryIdeasFromSeed(userIdea, aiConfig.model, mood);
+      const generatedStories = await service.generateStoryIdeasFromSeed(userIdea, aiConfig.model, mood, 2);
       setStories(generatedStories);
       setStep(Step.STORY_SELECTION);
     } catch (err: any) {
@@ -160,6 +164,32 @@ const App: React.FC = () => {
       setLoadingStep(null);
     }
   }, [userIdea, aiConfig, mood]);
+  
+  const handleLoadMoreStories = useCallback(async () => {
+    if (!aiConfig) return;
+    setIsLoadingMore(true);
+    try {
+      const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
+      let newStories: Story[];
+      if (isFromUserSeed) {
+        newStories = await service.generateStoryIdeasFromSeed(userIdea, aiConfig.model, mood, 2);
+      } else {
+        newStories = await service.generateStoryIdeas(aiConfig.model, mood, 2);
+      }
+
+      const mappedNewStories = newStories.map((story, index) => ({
+        ...story,
+        id: stories.length + index,
+      }));
+
+      setStories(prevStories => [...prevStories, ...mappedNewStories]);
+
+    } catch (err: any) {
+      handleApiError(err, 'tải thêm ý tưởng');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [aiConfig, mood, isFromUserSeed, userIdea, stories.length]);
 
   const handleSelectStory = useCallback(async (story: Story) => {
     if (!aiConfig) return;
@@ -245,11 +275,13 @@ const App: React.FC = () => {
     setToasts([]);
     setUserIdea('');
     setAspectRatio('16:9');
-    setMood(moodOptions[0].value);
+    setMood(moodOptions[2].value);
     setUploadedScript('');
     setUploadedFileName('');
     setVisualStyle(PREDEFINED_STYLES[0]);
     setSelectedCharacter(null);
+    setIsLoadingMore(false);
+    setIsFromUserSeed(false);
   };
 
   const handleSaveSession = () => {
@@ -303,7 +335,7 @@ const App: React.FC = () => {
     setAiConfig(s.aiConfig);
     setTheme(s.theme);
     setAspectRatio(s.aspectRatio || '16:9');
-    setMood(s.mood || moodOptions[0].value);
+    setMood(s.mood || moodOptions[2].value);
     setVisualStyle(s.visualStyle || PREDEFINED_STYLES[0]);
     setSelectedCharacter(s.selectedCharacter || null);
     setToasts([]);
@@ -557,7 +589,12 @@ const App: React.FC = () => {
               )}
 
               {step === Step.STORY_SELECTION && (
-                <StorySelection stories={stories} onSelect={handleSelectStory} />
+                <StorySelection 
+                    stories={stories} 
+                    onSelect={handleSelectStory} 
+                    onLoadMore={handleLoadMoreStories}
+                    isLoadingMore={isLoadingMore}
+                />
               )}
               
               {(step === Step.STORY_EXPANSION || step === Step.STORY_EXPANDED) && (

@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import type { Story, ScenePrompt, ApiKeyStore, VisualStyle, LibraryCharacter } from '../types';
-import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, getRolePrompt, getRolePromptNoTranslation, getAnalyzeImagePrompt } from '../constants';
+import { getStep1Prompt, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, getRolePrompt, getRolePromptNoTranslation, getAnalyzeImagePrompt } from '../constants';
 
 const getGeminiApiKey = (): string | null => {
     const storeStr = localStorage.getItem('apiKeyStore');
@@ -52,14 +52,14 @@ const parseStories = (responseText: string): Story[] => {
 };
 
 
-export const generateStoryIdeas = async (model: string, mood: string): Promise<Story[]> => {
+export const generateStoryIdeas = async (model: string, mood: string, count: number): Promise<Story[]> => {
     try {
         const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: model,
-            contents: [{ parts: [{ text: STEP_1_PROMPT }] }],
+            contents: [{ parts: [{ text: getStep1Prompt(count, mood) }] }],
             config: {
-                systemInstruction: getRolePrompt(mood),
+                systemInstruction: getRolePrompt(),
                 temperature: 0.8,
             }
         });
@@ -74,15 +74,15 @@ export const generateStoryIdeas = async (model: string, mood: string): Promise<S
     }
 };
 
-export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string, mood: string): Promise<Story[]> => {
+export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string, mood: string, count: number): Promise<Story[]> => {
     try {
         const ai = getAiClient();
-        const prompt = getStep1FromSeedPrompt(seedIdea);
+        const prompt = getStep1FromSeedPrompt(seedIdea, count, mood);
         const response = await ai.models.generateContent({
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
             config: {
-                systemInstruction: getRolePrompt(mood),
+                systemInstruction: getRolePrompt(),
                 temperature: 0.8,
             }
         });

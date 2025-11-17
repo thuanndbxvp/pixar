@@ -1,5 +1,5 @@
 import type { Story, ScenePrompt, ApiKeyStore, VisualStyle, LibraryCharacter } from '../types';
-import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4PromptOpenAI, getRolePrompt, getRolePromptNoTranslation, getAnalyzeImagePrompt } from '../constants';
+import { getStep1Prompt, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4PromptOpenAI, getRolePrompt, getRolePromptNoTranslation, getAnalyzeImagePrompt } from '../constants';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_IMAGE_API_URL = 'https://api.openai.com/v1/images/generations';
@@ -59,93 +59,68 @@ const callOpenAI = async (messages: any[], model: string, jsonMode: boolean = fa
     if (jsonMode) {
         body.response_format = { type: 'json_object' };
     }
-
-    const response = await fetch(OPENAI_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        console.error("OpenAI API Error:", errorData);
-        throw new Error(`OpenAI API request failed: ${errorData.error.message}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
-};
-
-export const generateStoryIdeas = async (model: string, mood: string): Promise<Story[]> => {
+    
     try {
-        const messages = [
-            { role: 'system', content: getRolePrompt(mood) },
-            { role: 'user', content: STEP_1_PROMPT }
-        ];
-        const responseText = await callOpenAI(messages, model);
-        return parseStoriesOpenAI(responseText);
+        const response = await fetch(OPENAI_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("OpenAI API Error:", errorData);
+            throw new Error(`OpenAI API request failed: ${errorData.error.message}`);
+        }
+
+        const data = await response.json();
+        return data.choices[0].message.content;
     } catch (error) {
-        console.error("Error generating story ideas with OpenAI:", error);
         if (error instanceof Error) {
             throw new Error(`Failed to communicate with OpenAI API: ${error.message}`);
         }
-        throw new Error("Failed to communicate with OpenAI API.");
+        throw new Error("An unknown error occurred while communicating with OpenAI API.");
     }
 };
 
-export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string, mood: string): Promise<Story[]> => {
-    try {
-        const prompt = getStep1FromSeedPrompt(seedIdea);
-        const messages = [
-            { role: 'system', content: getRolePrompt(mood) },
-            { role: 'user', content: prompt }
-        ];
-        const responseText = await callOpenAI(messages, model);
-        return parseStoriesOpenAI(responseText);
-    } catch (error) {
-        console.error("Error generating story ideas from seed with OpenAI:", error);
-        if (error instanceof Error) {
-            throw new Error(`Failed to communicate with OpenAI API: ${error.message}`);
-        }
-        throw new Error("Failed to communicate with OpenAI API.");
-    }
+export const generateStoryIdeas = async (model: string, mood: string, count: number): Promise<Story[]> => {
+    const messages = [
+        { role: 'system', content: getRolePrompt() },
+        { role: 'user', content: getStep1Prompt(count, mood) }
+    ];
+    const responseText = await callOpenAI(messages, model);
+    return parseStoriesOpenAI(responseText);
+};
+
+export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string, mood: string, count: number): Promise<Story[]> => {
+    const prompt = getStep1FromSeedPrompt(seedIdea, count, mood);
+    const messages = [
+        { role: 'system', content: getRolePrompt() },
+        { role: 'user', content: prompt }
+    ];
+    const responseText = await callOpenAI(messages, model);
+    return parseStoriesOpenAI(responseText);
 };
 
 export const expandStory = async (storyContent: string, model: string, mood: string): Promise<string> => {
-    try {
-        const prompt = getStep2Prompt(storyContent);
-        const messages = [
-            { role: 'system', content: getRolePromptNoTranslation(mood) },
-            { role: 'user', content: prompt }
-        ];
-        return await callOpenAI(messages, model);
-    } catch (error) {
-        console.error("Error expanding story with OpenAI:", error);
-        if (error instanceof Error) {
-            throw new Error(`Failed to communicate with OpenAI API: ${error.message}`);
-        }
-        throw new Error("Failed to communicate with OpenAI API.");
-    }
+    const prompt = getStep2Prompt(storyContent);
+    const messages = [
+        { role: 'system', content: getRolePromptNoTranslation(mood) },
+        { role: 'user', content: prompt }
+    ];
+    return await callOpenAI(messages, model);
 };
 
 export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string, visualStyle: VisualStyle, selectedCharacter: LibraryCharacter | null): Promise<string> => {
-    try {
-        const prompt = getStep3Prompt(expandedStory, aspectRatio, visualStyle, selectedCharacter);
-        const messages = [
-            { role: 'system', content: getRolePromptNoTranslation(mood, visualStyle.description) },
-            { role: 'user', content: prompt }
-        ];
-        return await callOpenAI(messages, model);
-    } catch (error) {
-        console.error("Error creating script from story with OpenAI:", error);
-        if (error instanceof Error) {
-            throw new Error(`Failed to communicate with OpenAI API: ${error.message}`);
-        }
-        throw new Error("Failed to communicate with OpenAI API.");
-    }
+    const prompt = getStep3Prompt(expandedStory, aspectRatio, visualStyle, selectedCharacter);
+    const messages = [
+        { role: 'system', content: getRolePromptNoTranslation(mood, visualStyle.description) },
+        { role: 'user', content: prompt }
+    ];
+    return await callOpenAI(messages, model);
 };
 
 export const generateVisualPrompts = async (script: string, model: string, aspectRatio: '9:16' | '16:9', mood: string, styleDescription: string): Promise<ScenePrompt[]> => {
@@ -174,32 +149,24 @@ export const generateVisualPrompts = async (script: string, model: string, aspec
 };
 
 export const analyzeImageStyle = async (imageBase64: string, mimeType: string, model: string, options: { style: boolean; character: boolean }): Promise<string> => {
-    try {
-        if (!model.startsWith('gpt-4')) {
-            throw new Error("Phân tích hình ảnh chỉ được hỗ trợ trên các mô hình GPT-4 có khả năng vision (ví dụ: gpt-4o, gpt-4-turbo).");
-        }
-        
-        const messages = [{
-            role: 'user',
-            content: [
-                { type: 'text', text: getAnalyzeImagePrompt(options) },
-                {
-                    type: 'image_url',
-                    image_url: {
-                        url: `data:${mimeType};base64,${imageBase64}`
-                    }
-                }
-            ]
-        }];
-
-        return await callOpenAI(messages, model);
-    } catch (error) {
-        console.error("Error analyzing image style with OpenAI:", error);
-        if (error instanceof Error) {
-            throw new Error(`Failed to communicate with OpenAI API: ${error.message}`);
-        }
-        throw new Error("Failed to communicate with OpenAI API.");
+    if (!model.startsWith('gpt-4')) {
+        throw new Error("Phân tích hình ảnh chỉ được hỗ trợ trên các mô hình GPT-4 có khả năng vision (ví dụ: gpt-4o, gpt-4-turbo).");
     }
+    
+    const messages = [{
+        role: 'user',
+        content: [
+            { type: 'text', text: getAnalyzeImagePrompt(options) },
+            {
+                type: 'image_url',
+                image_url: {
+                    url: `data:${mimeType};base64,${imageBase64}`
+                }
+            }
+        ]
+    }];
+
+    return await callOpenAI(messages, model);
 };
 
 export const generateImageFromPrompt = async (prompt: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
@@ -250,37 +217,29 @@ export const generateImageFromPrompt = async (prompt: string, aspectRatio: '9:16
 
 
 export const translateText = async (text: string, model: string): Promise<string> => {
-    try {
-        const prompt = `Translate the following English text to Vietnamese. Maintain the original formatting, including markdown and line breaks. Do not add any extra explanations or introductions. The text to translate is:\n\n---\n\n${text}`;
-        const messages = [
-            { role: 'system', content: "You are a helpful translation assistant." },
-            { role: 'user', content: prompt }
-        ];
-        
-        const apiKey = getOpenAiApiKey();
-        if (!apiKey) {
-            throw new Error("OpenAI API Key chưa được kích hoạt.");
-        }
-        const body = { model, messages, temperature: 0.2 };
-        const response = await fetch(OPENAI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify(body),
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`OpenAI translation failed: ${errorData.error.message}`);
-        }
-        const data = await response.json();
-        return data.choices[0].message.content;
-    } catch (error) {
-        console.error("Error translating text with OpenAI:", error);
-        if (error instanceof Error) {
-            throw new Error(`Failed to communicate with OpenAI API: ${error.message}`);
-        }
-        throw new Error("Failed to communicate with OpenAI API.");
+    const prompt = `Translate the following English text to Vietnamese. Maintain the original formatting, including markdown and line breaks. Do not add any extra explanations or introductions. The text to translate is:\n\n---\n\n${text}`;
+    const messages = [
+        { role: 'system', content: "You are a helpful translation assistant." },
+        { role: 'user', content: prompt }
+    ];
+    
+    const apiKey = getOpenAiApiKey();
+    if (!apiKey) {
+        throw new Error("OpenAI API Key chưa được kích hoạt.");
     }
+    const body = { model, messages, temperature: 0.2 };
+    const response = await fetch(OPENAI_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`OpenAI translation failed: ${errorData.error.message}`);
+    }
+    const data = await response.json();
+    return data.choices[0].message.content;
 };

@@ -167,11 +167,11 @@ const getMoodRule = (mood?: string, ruleNumber: number = 6): string => {
     return mood ? `\n${ruleNumber}. The overall mood and tone MUST be ${mood}. This should be reflected in the plot, descriptions, lighting, and character emotions.` : '';
 }
 
-export const getRolePrompt = (mood?: string): string => {
+export const getRolePrompt = (): string => {
     const defaultStyle = PREDEFINED_STYLES[0].description;
     return `
 ${baseRolePrompt}
-${getGlobalRules(defaultStyle)}${getMoodRule(mood)}
+${getGlobalRules(defaultStyle)}
 ${characterSchema(defaultStyle)}
 `;
 }
@@ -186,10 +186,12 @@ ${characterSchema(finalStyleDesc)}
 }
 
 
-export const STEP_1_PROMPT = `
-WORKFLOW STEP 1 — GENERATE 5–7 ORIGINAL MICRO-STORIES
+export const getStep1Prompt = (count: number, mood: string): string => `
+WORKFLOW STEP 1 — GENERATE ${count} ORIGINAL MICRO-STORIES
 
-Write 6 standalone short stories, each designed for a 60–90 second film.
+**CRITICAL INSTRUCTION: The overall mood and tone for ALL stories MUST be "${mood}".** This is the most important requirement and must be reflected in the plot, events, character emotions, and final twist of every story you generate.
+
+Your main task is to write ${count} standalone short stories, each designed for a 60–90 second film.
 Each story must include:
 - A very real-life problem (e.g., poverty, debt, betrayal, temptation, consequence, bad choices…).
 - Action and psychological conflict as the core.
@@ -201,15 +203,17 @@ Each story must include:
 Format the output clearly. For each story, start with "STORY TITLE:" on one line, followed by the story content on the next lines. Separate each story with "---".
 `;
 
-export const getStep1FromSeedPrompt = (seedIdea: string): string => `
-WORKFLOW STEP 1 — GENERATE 6 ORIGINAL MICRO-STORIES FROM A SEED IDEA
+export const getStep1FromSeedPrompt = (seedIdea: string, count: number, mood: string): string => `
+WORKFLOW STEP 1 — GENERATE ${count} ORIGINAL MICRO-STORIES FROM A SEED IDEA
+
+**CRITICAL INSTRUCTION: The overall mood and tone for ALL stories MUST be "${mood}".** This is the most important requirement and must be reflected in how you interpret the user's idea and develop the plot, character emotions, and final twist of every story you generate.
 
 The user has provided the following initial idea:
 ---
 ${seedIdea}
 ---
 
-Your task is to write 6 standalone short stories based on this seed idea. Each story should be a unique interpretation or expansion of the user's concept, designed for a 60–90 second film.
+Your main task is to write ${count} standalone short stories based on this seed idea. Each story should be a unique interpretation or expansion of the user's concept, designed for a 60–90 second film.
 
 Each story must include:
 - A very real-life problem (e.g., poverty, debt, betrayal, temptation, consequence, bad choices…).
