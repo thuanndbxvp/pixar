@@ -348,13 +348,14 @@ const App: React.FC = () => {
   };
 
   const handleUseUploadedScript = useCallback(async () => {
-    if (!uploadedScript) return;
+    if (!uploadedScript.trim()) return;
     
+    const title = uploadedFileName || 'Kịch bản tùy chỉnh';
     const newStory: Story = {
         id: 0,
-        title: uploadedFileName || 'Kịch bản Tải lên',
-        content: `Kịch bản được tải lên bởi người dùng: ${uploadedFileName}`,
-        expandedStory: `Kịch bản được tải lên bởi người dùng: ${uploadedFileName}`,
+        title: title,
+        content: `Kịch bản được cung cấp bởi người dùng: ${title}`,
+        expandedStory: `Kịch bản được cung cấp bởi người dùng: ${title}`,
         script: uploadedScript,
         prompts: []
     };
@@ -523,7 +524,7 @@ const App: React.FC = () => {
                         {/* Right Column: Upload Script */}
                         <div className="text-center bg-gray-900/50 p-6 rounded-lg ring-1 ring-gray-700 h-full flex flex-col">
                             <h3 className="text-lg font-semibold text-center mb-2 text-gray-200">Sử dụng kịch bản có sẵn</h3>
-                            <p className="text-gray-400 mb-4 text-sm">Tải lên một kịch bản (.txt) để đi thẳng đến bước tạo gợi ý hình ảnh.</p>
+                            <p className="text-gray-400 mb-4 text-sm">Nhập hoặc tải lên một kịch bản (.txt) để đi thẳng đến bước tạo gợi ý hình ảnh.</p>
                             
                             <input type="file" accept=".txt" onChange={handleScriptUpload} className="hidden" ref={fileInputRef}/>
                             <button 
@@ -534,10 +535,17 @@ const App: React.FC = () => {
                                <span>Tải lên tệp .txt</span>
                             </button>
                             
+                            <div className="w-full text-left mt-4 mb-1">
+                                <label htmlFor="script-input" className="text-sm font-medium text-gray-300">
+                                    {uploadedFileName ? `Nội dung từ: ${uploadedFileName}` : 'Hoặc nhập trực tiếp:'}
+                                </label>
+                            </div>
                             <textarea
-                                readOnly
-                                value={uploadedScript ? `Đã tải tệp: ${uploadedFileName}\n\n${uploadedScript.substring(0, 200)}${uploadedScript.length > 200 ? '...' : ''}` : 'Chưa có kịch bản nào được tải lên.'}
-                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-gray-400 mt-4 text-xs font-mono flex-grow"
+                                id="script-input"
+                                value={uploadedScript}
+                                onChange={(e) => setUploadedScript(e.target.value)}
+                                placeholder="Dán hoặc nhập kịch bản của bạn vào đây..."
+                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-gray-200 text-sm flex-grow focus:ring-2 focus:ring-[var(--theme-500)] focus:border-[var(--theme-500)] transition-colors"
                                 rows={6}
                             />
                             
@@ -546,7 +554,7 @@ const App: React.FC = () => {
                                     onClick={handleUseUploadedScript} 
                                     Icon={ViewColumnsIcon} 
                                     text="Sử dụng Kịch bản này" 
-                                    disabled={!uploadedScript || loadingStep === Step.IDEATION}
+                                    disabled={!uploadedScript.trim() || loadingStep === Step.IDEATION}
                                 />
                             </div>
                         </div>
