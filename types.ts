@@ -57,6 +57,14 @@ export interface ApiKeyStore {
   openai: ApiKeyProviderStore;
 }
 
+export type VisualStyleType = 'predefined' | 'analyzed' | 'custom';
+
+export interface VisualStyle {
+  type: VisualStyleType;
+  name: string;
+  description: string;
+}
+
 export interface Session {
   id: string;
   name: string;
@@ -70,6 +78,7 @@ export interface Session {
     theme: ThemeName;
     aspectRatio: '9:16' | '16:9';
     mood: string;
+    visualStyle: VisualStyle;
   };
 }
 

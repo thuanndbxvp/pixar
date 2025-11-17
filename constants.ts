@@ -1,3 +1,5 @@
+import type { VisualStyle } from './types';
+
 export const AI_MODELS = {
   gemini: [
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
@@ -9,58 +11,99 @@ export const AI_MODELS = {
   ],
 };
 
+export const PREDEFINED_STYLES: VisualStyle[] = [
+    {
+        type: 'predefined',
+        name: 'Cổ điển Pixar',
+        description: `Style: Classic Pixar 3D — anthropomorphic cat with human-proportioned body and cat head/ears/tail. Ultra detailed, cinematic soft lighting, and emotional realism. Backgrounds are lively urban or indoor spaces.`
+    },
+    {
+        type: 'predefined',
+        name: 'Hoạt hình Đất sét Kỹ thuật số',
+        description: `Style: Digital claymation, Aardman-style. Anthropomorphic cat with a tactile, slightly imperfect, handcrafted feel. Textured surfaces with visible thumbprints. Warm, focused lighting. Stop-motion-like movement.`
+    },
+    {
+        type: 'predefined',
+        name: 'Màu nước Sống động',
+        description: `Style: Living watercolor, Ghibli-inspired. Anthropomorphic cat rendered with soft, bleeding watercolor textures and visible brush strokes. Rich, vibrant color palette. Dreamy, ethereal lighting.`
+    },
+    {
+        type: 'predefined',
+        name: 'Cel-Shaded Hoạt hình Nhật Bản',
+        description: `Style: Anime cel-shaded. Anthropomorphic cat with crisp black outlines, flat color fills, and sharp, stylized shadows. Dynamic, expressive facial features and energetic action lines. Bright, high-contrast lighting.`
+    },
+    {
+        type: 'predefined',
+        name: 'Đồ họa Thấp Poly Tối giản',
+        description: `Style: Minimalist low-poly. Anthropomorphic cat constructed from visible geometric polygons. Flat, solid color palettes. Clean, abstract environments. Simple, direct lighting with hard-edged shadows.`
+    },
+    {
+        type: 'predefined',
+        name: 'Đen trắng Cổ điển',
+        description: `Style: Vintage black-and-white, 1930s rubber hose animation style. Anthropomorphic cat with simple, looping animations, exaggerated movements, and pie-eyes. High-contrast monochrome palette. Film grain and subtle light flicker.`
+    }
+];
+
+
 const baseRolePrompt = `
 You are a 3D animated short writer–director in the Pixar-like style: grounded, emotionally rich everyday stories with a strong, logical twist.`;
 
-const globalRulesWithTranslation = `
+const getGlobalRules = (styleDescription: string) => `
 GLOBAL RULES:
 1. All generated content (story titles, story content, character descriptions, scene descriptions, prompts) MUST be in English.
 2. After each piece of English text, you MUST provide a concise Vietnamese translation in parentheses. For example: "STORY TITLE: The Last Coin (Đồng Xu Cuối Cùng)" or "Setting: A rainy alley at night. (Bối cảnh: Một con hẻm mưa vào ban đêm.)"
 3. No dialogue anywhere. Everything is conveyed via action, light, blocking, and facial expression.
-4. Maintain a consistent visual style throughout: Pixar-like 3D — anthropomorphic cat — ultra detailed — cinematic lighting — soft shadows — emotional realism.
+4. Maintain a consistent visual style throughout. The style is: ${styleDescription}
 5. Every scene and every prompt (image + video) must repeat the full character description verbatim once characters are locked.`;
 
-const globalRulesNoTranslation = `
+const getGlobalRulesNoTranslation = (styleDescription: string) => `
 GLOBAL RULES:
 1. All generated content MUST be in English. Do not add any Vietnamese translations.
 2. No dialogue anywhere. Everything is conveyed via action, light, blocking, and facial expression.
-3. Maintain a consistent visual style throughout: Pixar-like 3D — anthropomorphic cat — ultra detailed — cinematic lighting — soft shadows — emotional realism.
+3. Maintain a consistent visual style throughout. The style is: ${styleDescription}
 4. Every scene and every prompt (image + video) must repeat the full character description verbatim once characters are locked.`;
 
-const characterSchema = `
+
+const characterSchema = (styleDescription: string) => `
 CHARACTER SCHEMA (to be used after story selection):
 Character Name: [A fitting proper name, e.g., Neko, Mimi, Shadow…]
 Species: Anthropomorphic cat.
 Detailed Appearance:
 Human-proportioned body, cat head; cat ears, large expressive eyes, soft expressive tail.
-Fine, detailed fur; Pixar-like 3D materials and lighting feel.
+Fine, detailed fur; materials and lighting feel consistent with the main style.
 Everyday clothing: denim jacket, hoodie dress, shirt, shorts, etc.
 Soft, realistic light response on skin/fur.
-Visual Style Keywords: 3D animation, anthropomorphic cat, ultra detailed, cinematic lighting, soft shadows, emotional realism.
+Visual Style Keywords: ${styleDescription}
 
 Example Character Description:
 Neko (anthropomorphic gray cat):
 Slender build; ash-gray fur cat head; pointed ears; long thin tail.
 Wears a faded, scuffed denim jacket and dark khaki pants.
 Large amber eyes; slightly tousled fur; warm reflective lighting.
-Style: Pixar-like 3D, anthropomorphic cat, ultra detailed, warm cinematic lighting.
+Style: ${styleDescription}
 `;
 
 const getMoodRule = (mood?: string, ruleNumber: number = 6): string => {
     return mood ? `\n${ruleNumber}. The overall mood and tone MUST be ${mood}. This should be reflected in the plot, descriptions, lighting, and character emotions.` : '';
 }
 
-export const getRolePrompt = (mood?: string): string => `
+export const getRolePrompt = (mood?: string): string => {
+    const defaultStyle = PREDEFINED_STYLES[0].description;
+    return `
 ${baseRolePrompt}
-${globalRulesWithTranslation}${getMoodRule(mood)}
-${characterSchema}
+${getGlobalRules(defaultStyle)}${getMoodRule(mood)}
+${characterSchema(defaultStyle)}
 `;
+}
 
-export const getRolePromptNoTranslation = (mood?: string): string => `
+export const getRolePromptNoTranslation = (mood?: string, styleDescription?: string): string => {
+    const finalStyleDesc = styleDescription || PREDEFINED_STYLES[0].description;
+    return `
 ${baseRolePrompt}
-${globalRulesNoTranslation}${getMoodRule(mood)}
-${characterSchema}
+${getGlobalRulesNoTranslation(finalStyleDesc)}${getMoodRule(mood)}
+${characterSchema(finalStyleDesc)}
 `;
+}
 
 
 export const STEP_1_PROMPT = `
@@ -90,7 +133,7 @@ Your task is to write 6 standalone short stories based on this seed idea. Each s
 Each story must include:
 - A very real-life problem (e.g., poverty, debt, betrayal, temptation, consequence, bad choices…).
 - Action and psychological conflict as the core.
-- A surprising but logical twist at the end.
+- A surprising but logical twist at theend.
 - No dialogue — everything conveyed via action, light, blocking, and facial expression.
 - Cinematic prose: concise, visual, evocative.
 
@@ -111,7 +154,6 @@ This is not a script yet. Write it as cinematic prose.
 - Deepen the character's motivations and internal conflicts.
 - Build the emotional arc, ensuring the beginning, middle, and end are well-defined.
 - The story should still lead to the same surprising but logical twist.
-- Maintain a tone suitable for a Pixar-style animated short.
 - No dialogue. All actions and emotions must be conveyed through visual description.
 - Keep the output in English only.
 
@@ -139,7 +181,7 @@ Your tasks are:
 Structure the output clearly. First, list the characters under "CHARACTERS". Then, for each scene, use the format "SCENE [Number]:" followed by the details. Separate each scene with "---".
 `;
 
-export const getStep4Prompt = (script: string, aspectRatio: '9:16' | '16:9'): string => {
+export const getStep4Prompt = (script: string, aspectRatio: '9:16' | '16:9', styleDescription: string): string => {
     const formatString = aspectRatio === '9:16' ? '9:16 vertical' : '16:9 horizontal';
     const formatInstruction = aspectRatio === '9:16' ? 'VERTICAL 9:16' : 'HORIZONTAL 16:9';
     return `
@@ -156,16 +198,14 @@ Follow these rules exactly:
 
 Image Prompt Rules:
 - Format: ${formatString}.
-- Style: Pixar-like 3D, anthropomorphic cat — human body, cat head, ears, tail.
-- Materials: ultra detailed, cinematic soft lighting, emotional realism.
-- Background: lively urban or indoor spaces (streets, beach, gym, restaurant, classroom, bedroom, café…). May include neon signage, emissive lights, reflective glows, or cozy interiors.
+- Style: ${styleDescription}
 - Composition: cinematic depth; flexible mix of medium/close/wide.
 - Mood: authentic, nuanced, not showy.
 - IMPORTANT: Repeat the full fixed character description from the script every time characters appear in prompts.
 
 Video Prompt Rules (3–5 seconds):
 - Format: ${formatString}.
-- Style: Pixar-like 3D, anthropomorphic cat.
+- Style: ${styleDescription}
 - Smooth cinematic motion: Camera pans, slow zooms, gentle dolly in/out.
 - Micro-animation: subtle blinks, slight head turns, small bows, tail/hand slow movement, natural footsteps.
 - Lighting: soft, environment-aware; optional gentle flicker, sunlight shafts, or neon bleed.
@@ -182,7 +222,7 @@ You must return a JSON array of objects. Each object in the array should represe
 `;
 };
 
-export const getStep4PromptOpenAI = (script: string, aspectRatio: '9:16' | '16:9'): string => {
+export const getStep4PromptOpenAI = (script: string, aspectRatio: '9:16' | '16:9', styleDescription: string): string => {
     const formatString = aspectRatio === '9:16' ? '9:16 vertical' : '16:9 horizontal';
     const formatInstruction = aspectRatio === '9:16' ? 'VERTICAL 9:16' : 'HORIZONTAL 16:9';
     return `
@@ -199,16 +239,14 @@ Follow these rules exactly for image and video prompts.
 
 Image Prompt Rules:
 - Format: ${formatString}.
-- Style: Pixar-like 3D, anthropomorphic cat — human body, cat head, ears, tail.
-- Materials: ultra detailed, cinematic soft lighting, emotional realism.
-- Background: lively urban or indoor spaces (streets, beach, gym, restaurant, classroom, bedroom, café…). May include neon signage, emissive lights, reflective glows, or cozy interiors.
+- Style: ${styleDescription}
 - Composition: cinematic depth; flexible mix of medium/close/wide.
 - Mood: authentic, nuanced, not showy.
 - IMPORTANT: Repeat the full fixed character description from the script every time characters appear in prompts.
 
 Video Prompt Rules (3–5 seconds):
 - Format: ${formatString}.
-- Style: Pixar-like 3D, anthropomorphic cat.
+- Style: ${styleDescription}
 - Smooth cinematic motion: Camera pans, slow zooms, gentle dolly in/out.
 - Micro-animation: subtle blinks, slight head turns, small bows, tail/hand slow movement, natural footsteps.
 - Lighting: soft, environment-aware; optional gentle flicker, sunlight shafts, or neon bleed.
@@ -224,3 +262,19 @@ You must return a single JSON object. Do not output any other text or markdown. 
 }
 `;
 };
+
+
+export const ANALYZE_IMAGE_STYLE_PROMPT = `
+Analyze the provided image and describe its visual style in a concise paragraph. 
+Focus on the key artistic elements that another AI could use to replicate this style for a 3D animated short film featuring an anthropomorphic cat character.
+Cover these aspects:
+- Overall Mood/Atmosphere (e.g., whimsical, somber, futuristic)
+- Art Style (e.g., realistic, cel-shaded, painterly, claymation, low-poly)
+- Color Palette (e.g., vibrant and saturated, muted and desaturated, monochrome)
+- Lighting (e.g., soft and diffused, high-contrast and dramatic, neon glow)
+- Textures & Materials (e.g., smooth and clean, rough and tactile, glossy)
+- Key distinguishing features.
+
+Format the output as a single string of keywords and descriptive phrases, starting with "Style:". For example: "Style: Digital claymation, Aardman-style. Tactile, handcrafted feel. Textured surfaces with visible thumbprints. Warm, focused lighting. Stop-motion-like movement."
+Keep the description in English only.
+`;

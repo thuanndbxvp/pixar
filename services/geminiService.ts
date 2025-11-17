@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Story, ScenePrompt, ApiKeyStore } from '../types';
-import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, getRolePrompt, getRolePromptNoTranslation } from '../constants';
+import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, getRolePrompt, getRolePromptNoTranslation, ANALYZE_IMAGE_STYLE_PROMPT } from '../constants';
 
 const getGeminiApiKey = (): string | null => {
     const storeStr = localStorage.getItem('apiKeyStore');
@@ -141,15 +141,15 @@ export const createScriptFromStory = async (expandedStory: string, model: string
     }
 };
 
-export const generateVisualPrompts = async (script: string, model: string, aspectRatio: '9:16' | '16:9', mood: string): Promise<ScenePrompt[]> => {
+export const generateVisualPrompts = async (script: string, model: string, aspectRatio: '9:16' | '16:9', mood: string, styleDescription: string): Promise<ScenePrompt[]> => {
     try {
         const ai = getAiClient();
-        const prompt = getStep4Prompt(script, aspectRatio);
+        const prompt = getStep4Prompt(script, aspectRatio, styleDescription);
         const response = await ai.models.generateContent({
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
             config: {
-                systemInstruction: getRolePromptNoTranslation(mood),
+                systemInstruction: getRolePromptNoTranslation(mood, styleDescription),
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.ARRAY,
@@ -177,6 +177,32 @@ export const generateVisualPrompts = async (script: string, model: string, aspec
              throw new Error(`Failed to communicate with Gemini API or parse its JSON response: ${error.message}`);
         }
         throw new Error("Failed to communicate with Gemini API or parse its JSON response.");
+    }
+};
+
+export const analyzeImageStyle = async (imageBase64: string, mimeType: string, model: string): Promise<string> => {
+    try {
+        const ai = getAiClient();
+        const imagePart = {
+            inlineData: {
+                data: imageBase64,
+                mimeType: mimeType
+            }
+        };
+        const textPart = { text: ANALYZE_IMAGE_STYLE_PROMPT };
+
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: [{ parts: [textPart, imagePart] }]
+        });
+        
+        return response.text;
+    } catch (error) {
+        console.error("Error analyzing image style with Gemini:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to analyze image with Gemini API: ${error.message}`);
+        }
+        throw new Error("Failed to analyze image with Gemini API.");
     }
 };
 

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as geminiService from './services/geminiService';
 import * as openaiService from './services/openaiService';
-import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig, Session, Toast } from './types';
+import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig, Session, Toast, VisualStyle } from './types';
 import { Step } from './types';
 import { themeColors } from './themes';
 import StorySelection from './components/StorySelection';
@@ -13,10 +13,11 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ActionButton from './components/ActionButton';
 import ApiKeyModal from './components/ApiKeyModal';
 import LibraryModal from './components/LibraryModal';
+import StyleModal from './components/StyleModal';
 import ThemePicker from './components/ThemePicker';
 import ToastContainer from './components/ToastContainer';
-import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon, BookmarkSquareIcon, FolderOpenIcon, ViewColumnsIcon, ArrowUpTrayIcon } from '@heroicons/react/24/solid';
-import { AI_MODELS } from './constants';
+import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon, BookmarkSquareIcon, FolderOpenIcon, ViewColumnsIcon, ArrowUpTrayIcon, PaintBrushIcon } from '@heroicons/react/24/solid';
+import { AI_MODELS, PREDEFINED_STYLES } from './constants';
 
 const moodOptions = [
   { value: 'Inspirational', label: 'Truyền cảm hứng' },
@@ -39,6 +40,7 @@ const App: React.FC = () => {
   const [userIdea, setUserIdea] = useState<string>('');
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+  const [isStyleModalOpen, setIsStyleModalOpen] = useState(false);
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
   const [theme, setTheme] = useState<ThemeName>('sky');
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('16:9');
@@ -47,6 +49,7 @@ const App: React.FC = () => {
   const [uploadedScript, setUploadedScript] = useState<string>('');
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [visualStyle, setVisualStyle] = useState<VisualStyle>(PREDEFINED_STYLES[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const removeToast = (id: string) => {
@@ -214,7 +217,7 @@ const App: React.FC = () => {
     }
   }, [stories, selectedStoryId, aiConfig, aspectRatio, mood]);
 
-const handleGeneratePrompts = useCallback(async () => {
+  const handleGeneratePrompts = useCallback(async () => {
     if (selectedStoryId === null || !aiConfig) return;
     
     const story = stories.find(s => s.id === selectedStoryId);
@@ -224,7 +227,7 @@ const handleGeneratePrompts = useCallback(async () => {
     setStep(Step.PROMPT_GENERATION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-        const visualPrompts = await service.generateVisualPrompts(story.script, aiConfig.model, aspectRatio, mood);
+        const visualPrompts = await service.generateVisualPrompts(story.script, aiConfig.model, aspectRatio, mood, visualStyle.description);
         
         setStories(prevStories => prevStories.map(s => 
             s.id === selectedStoryId ? { ...s, prompts: visualPrompts } : s
@@ -236,7 +239,7 @@ const handleGeneratePrompts = useCallback(async () => {
     } finally {
         setLoadingStep(null);
     }
-}, [stories, selectedStoryId, aiConfig, aspectRatio, mood]);
+  }, [stories, selectedStoryId, aiConfig, aspectRatio, mood, visualStyle]);
   
   const handleReset = () => {
     setStep(Step.IDEATION);
@@ -249,6 +252,7 @@ const handleGeneratePrompts = useCallback(async () => {
     setMood(moodOptions[0].value);
     setUploadedScript('');
     setUploadedFileName('');
+    setVisualStyle(PREDEFINED_STYLES[0]);
   };
 
   const handleSaveSession = () => {
@@ -262,7 +266,7 @@ const handleGeneratePrompts = useCallback(async () => {
     const sessionName = storyToGetName.title;
 
     const currentState = {
-        step, stories, selectedStoryId, userIdea, aiConfig, theme, aspectRatio, mood
+        step, stories, selectedStoryId, userIdea, aiConfig, theme, aspectRatio, mood, visualStyle
     };
     
     const existingSessions: Session[] = JSON.parse(localStorage.getItem('animationStudioSessions') || '[]');
@@ -303,6 +307,7 @@ const handleGeneratePrompts = useCallback(async () => {
     setTheme(s.theme);
     setAspectRatio(s.aspectRatio || '16:9');
     setMood(s.mood || moodOptions[0].value);
+    setVisualStyle(s.visualStyle || PREDEFINED_STYLES[0]);
     setToasts([]);
     setLoadingStep(null);
     setIsLibraryModalOpen(false);
@@ -359,6 +364,12 @@ const handleGeneratePrompts = useCallback(async () => {
     setStep(Step.SCRIPT_GENERATED);
   }, [uploadedScript, uploadedFileName]);
   
+  const handleSaveStyle = (newStyle: VisualStyle) => {
+    setVisualStyle(newStyle);
+    setIsStyleModalOpen(false);
+    addToast('Lưu Phong cách thành công!', `Đã áp dụng phong cách "${newStyle.name}".`, 'success');
+  }
+
   const currentTheme = themeColors[theme];
   const appStyle = {
     '--theme-400': currentTheme[400],
@@ -387,7 +398,7 @@ const handleGeneratePrompts = useCallback(async () => {
               </h1>
             </div>
           </div>
-          <p className="mt-4 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn phong cách Pixar.</p>
+          <p className="mt-4 text-lg text-gray-400">Đối tác AI của bạn để tạo phim hoạt hình ngắn.</p>
           
           <div className="flex justify-center items-center gap-2 mt-6">
              <button
@@ -406,6 +417,10 @@ const handleGeneratePrompts = useCallback(async () => {
                <FolderOpenIcon className="w-5 h-5"/>
                <span>Thư viện</span>
              </button>
+             <button onClick={() => setIsStyleModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
+               <PaintBrushIcon className="w-5 h-5"/>
+               <span>Quản lý Phong cách</span>
+             </button>
             <button onClick={() => setIsApiModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                <KeyIcon className="w-5 h-5"/>
                <span>Quản lý API</span>
@@ -416,6 +431,14 @@ const handleGeneratePrompts = useCallback(async () => {
 
         <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} onSave={handleApiModalSave} addToast={addToast} />
         <LibraryModal isOpen={isLibraryModalOpen} onClose={() => setIsLibraryModalOpen(false)} onLoadSession={handleLoadSession} />
+        <StyleModal 
+            isOpen={isStyleModalOpen} 
+            onClose={() => setIsStyleModalOpen(false)}
+            onSave={handleSaveStyle}
+            currentStyle={visualStyle}
+            aiConfig={aiConfig}
+            addToast={addToast}
+        />
 
         <main className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-black/30 p-6 ring-1 ring-white/10">
           <StepIndicator 
