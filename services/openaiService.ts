@@ -32,7 +32,7 @@ export const validateApiKey = async (apiKey: string): Promise<boolean> => {
 
 // Parser for Step 1
 const parseStoriesOpenAI = (responseText: string): Story[] => {
-    const storiesRaw = responseText.split('---').filter(s => s.trim());
+    const storiesRaw = responseText.split('---').filter(s => s.trim() && s.toUpperCase().includes('STORY TITLE:'));
     return storiesRaw.map((storyText, index) => {
         const lines = storyText.trim().split('\n');
         const titleLine = lines.find(line => line.toUpperCase().startsWith('STORY TITLE:'));

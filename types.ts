@@ -72,3 +72,10 @@ export interface Session {
     mood: string;
   };
 }
+
+export interface Toast {
+  id: string;
+  message: string;
+  subMessage?: string;
+  type: 'success' | 'error' | 'info';
+}

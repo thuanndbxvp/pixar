@@ -3,12 +3,13 @@ import { KeyIcon, XMarkIcon, TrashIcon } from '@heroicons/react/24/solid';
 import { AI_MODELS } from '../constants';
 import * as geminiService from '../services/geminiService';
 import * as openaiService from '../services/openaiService';
-import type { AIConfig, ApiKeyStore, StoredApiKey } from '../types';
+import type { AIConfig, ApiKeyStore, StoredApiKey, Toast } from '../types';
 
 interface ApiKeyModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
+  addToast: (message: string, subMessage?: string, type?: Toast['type']) => void;
 }
 
 const defaultKeyStore: ApiKeyStore = {
@@ -16,12 +17,12 @@ const defaultKeyStore: ApiKeyStore = {
   openai: { keys: [], activeKeyId: null },
 };
 
-const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSave }) => {
+const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSave, addToast }) => {
   const [activeProvider, setActiveProvider] = useState<'gemini' | 'openai'>('gemini');
   const [activeModel, setActiveModel] = useState<string>(AI_MODELS.gemini[0].id);
   const [apiKeyStore, setApiKeyStore] = useState<ApiKeyStore>(defaultKeyStore);
   const [newKey, setNewKey] = useState('');
-  const [validation, setValidation] = useState<{status: 'idle' | 'loading' | 'success' | 'error', msg: string}>({ status: 'idle', msg: '' });
+  const [validation, setValidation] = useState<{status: 'idle' | 'loading' | 'error', msg: string}>({ status: 'idle', msg: '' });
 
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +54,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSave }) =>
   const handleSave = () => {
     const config: AIConfig = { provider: activeProvider, model: activeModel };
     localStorage.setItem('aiConfig', JSON.stringify(config));
+    addToast('Lưu Cấu hình thành công', `Sử dụng ${providerDetails[activeProvider].name} với mô hình ${activeModel}.`, 'success');
     onSave();
   };
 
@@ -77,15 +79,20 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSave }) =>
       const newStoredKey: StoredApiKey = { id: newId, key: newKey, masked: maskedKey };
       
       const newStore = { ...apiKeyStore };
-      newStore[activeProvider].keys.push(newStoredKey);
-      // Activate the first key added automatically
-      if (newStore[activeProvider].keys.length === 1) {
-          newStore[activeProvider].activeKeyId = newId;
+      const providerStore = newStore[activeProvider];
+      providerStore.keys.push(newStoredKey);
+      
+      let wasActivated = false;
+      if (providerStore.keys.length === 1 || !providerStore.activeKeyId) {
+          providerStore.activeKeyId = newId;
+          wasActivated = true;
       }
       
       updateApiKeyStore(newStore);
       setNewKey('');
-      setValidation({ status: 'success', msg: 'Key hợp lệ và đã được thêm!' });
+      setValidation({ status: 'idle', msg: '' });
+      addToast('Thêm Key thành công!', `Key ${maskedKey} đã được thêm${wasActivated ? ' và kích hoạt' : ''}.`, 'success');
+
     } else {
       setValidation({ status: 'error', msg: 'Key không hợp lệ hoặc có lỗi xảy ra.' });
     }
@@ -102,7 +109,6 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSave }) =>
     const providerStore = newStore[activeProvider];
     providerStore.keys = providerStore.keys.filter(k => k.id !== keyId);
 
-    // If the deleted key was active, set a new active key
     if (providerStore.activeKeyId === keyId) {
         providerStore.activeKeyId = providerStore.keys.length > 0 ? providerStore.keys[0].id : null;
     }
@@ -157,7 +163,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose, onSave }) =>
                       {validation.status === 'loading' ? 'Đang kiểm tra...' : 'Thêm & Kiểm tra'}
                   </button>
                 </div>
-                {validation.msg && <p className={`text-xs mt-2 ${validation.status === 'error' ? 'text-red-400' : 'text-green-400'}`}>{validation.msg}</p>}
+                {validation.msg && <p className={`text-xs mt-2 text-red-400`}>{validation.msg}</p>}
 
                 <h4 className="font-semibold text-sm mt-6 mb-3 text-gray-300">Keys đã lưu:</h4>
                 <div className="max-h-32 overflow-y-auto pr-2">

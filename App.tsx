@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as geminiService from './services/geminiService';
 import * as openaiService from './services/openaiService';
-import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig, Session } from './types';
+import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig, Session, Toast } from './types';
 import { Step } from './types';
 import { themeColors } from './themes';
 import StorySelection from './components/StorySelection';
@@ -14,7 +14,8 @@ import ActionButton from './components/ActionButton';
 import ApiKeyModal from './components/ApiKeyModal';
 import LibraryModal from './components/LibraryModal';
 import ThemePicker from './components/ThemePicker';
-import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon, BookmarkSquareIcon, FolderOpenIcon, CheckIcon, ViewColumnsIcon, ArrowUpTrayIcon } from '@heroicons/react/24/solid';
+import ToastContainer from './components/ToastContainer';
+import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon, BookmarkSquareIcon, FolderOpenIcon, ViewColumnsIcon, ArrowUpTrayIcon } from '@heroicons/react/24/solid';
 import { AI_MODELS } from './constants';
 
 const moodOptions = [
@@ -35,27 +36,57 @@ const App: React.FC = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedStoryId, setSelectedStoryId] = useState<number | null>(null);
   const [loadingStep, setLoadingStep] = useState<AppStep | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [userIdea, setUserIdea] = useState<string>('');
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
   const [aiConfig, setAiConfig] = useState<AIConfig | null>(null);
   const [theme, setTheme] = useState<ThemeName>('sky');
-  const [isJustSaved, setIsJustSaved] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('16:9');
   const [prevLoadingStep, setPrevLoadingStep] = useState<AppStep | null>(null);
   const [mood, setMood] = useState<string>(moodOptions[0].value);
   const [uploadedScript, setUploadedScript] = useState<string>('');
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const removeToast = (id: string) => {
+    setToasts(currentToasts => currentToasts.filter(toast => toast.id !== id));
+  };
+
+  const addToast = (message: string, subMessage: string = '', type: Toast['type'] = 'error') => {
+    const id = crypto.randomUUID();
+    const newToast: Toast = { id, message, subMessage, type };
+    // Add new toast to the top, and limit the number of toasts
+    setToasts(currentToasts => [newToast, ...currentToasts].slice(0, 5));
+  };
+
+  const handleApiError = (err: any, context: string) => {
+    console.error(`Error during ${context}:`, err);
+    let mainMessage = `Không thể ${context}`;
+    let subMessage = "Đã có lỗi không mong muốn xảy ra. Vui lòng thử lại.";
+
+    if (err instanceof Error && err.message) {
+      if (err.message.includes("API Key chưa được kích hoạt")) {
+        mainMessage = 'Lỗi Xác thực API';
+        subMessage = 'Key của bạn chưa được kích hoạt hoặc không hợp lệ. Vui lòng kiểm tra trong Quản lý API.';
+      } else if (err.message.toLowerCase().includes("failed to communicate")) {
+        mainMessage = 'Lỗi Kết nối API';
+        subMessage = 'Không thể kết nối đến dịch vụ AI. Kiểm tra lại kết nối mạng và API key.';
+      } else if (err.message.toLowerCase().includes("parse its json response")) {
+        mainMessage = 'Lỗi Dữ liệu Trả về';
+        subMessage = 'AI đã trả về định dạng không hợp lệ. Vui lòng thử lại sau giây lát.';
+      } else {
+        subMessage = err.message;
+      }
+    }
+    addToast(mainMessage, subMessage, 'error');
+  };
 
   const loadAiConfig = useCallback(() => {
     const storedConfig = localStorage.getItem('aiConfig');
     if (storedConfig) {
       setAiConfig(JSON.parse(storedConfig));
     } else {
-      // Default to the first Gemini model if nothing is set
       const defaultConfig: AIConfig = {
         provider: 'gemini',
         model: AI_MODELS.gemini[0].id,
@@ -97,15 +128,13 @@ const App: React.FC = () => {
   const handleGenerateStories = useCallback(async () => {
     if (!aiConfig) return;
     setLoadingStep(Step.IDEATION);
-    setError(null);
     try {
       const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
       const generatedStories = await service.generateStoryIdeas(aiConfig.model, mood);
       setStories(generatedStories);
       setStep(Step.STORY_SELECTION);
     } catch (err: any) {
-      setError(`Không thể tạo ý tưởng câu chuyện: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
-      console.error(err);
+      handleApiError(err, 'tạo ý tưởng câu chuyện');
     } finally {
       setLoadingStep(null);
     }
@@ -115,15 +144,13 @@ const App: React.FC = () => {
     if (!userIdea.trim() || !aiConfig) return;
     
     setLoadingStep(Step.IDEATION);
-    setError(null);
     try {
       const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
       const generatedStories = await service.generateStoryIdeasFromSeed(userIdea, aiConfig.model, mood);
       setStories(generatedStories);
       setStep(Step.STORY_SELECTION);
     } catch (err: any) {
-      setError(`Không thể phát triển ý tưởng của bạn: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
-      console.error(err);
+      handleApiError(err, 'phát triển ý tưởng của bạn');
       setStep(Step.IDEATION);
     } finally {
       setLoadingStep(null);
@@ -141,7 +168,6 @@ const App: React.FC = () => {
     }
 
     setLoadingStep(Step.STORY_EXPANSION);
-    setError(null);
     setStep(Step.STORY_EXPANSION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
@@ -153,8 +179,7 @@ const App: React.FC = () => {
         
         setStep(Step.STORY_EXPANDED);
     } catch (err: any) {
-        setError(`Không thể phát triển câu chuyện: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
-        console.error(err);
+        handleApiError(err, 'phát triển câu chuyện');
     } finally {
         setLoadingStep(null);
     }
@@ -172,7 +197,6 @@ const App: React.FC = () => {
     }
 
     setLoadingStep(Step.SCRIPT_GENERATION);
-    setError(null);
     setStep(Step.SCRIPT_GENERATION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
@@ -184,8 +208,7 @@ const App: React.FC = () => {
 
         setStep(Step.SCRIPT_GENERATED);
     } catch (err: any) {
-        setError(`Không thể tạo kịch bản: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
-        console.error(err);
+        handleApiError(err, 'tạo kịch bản');
     } finally {
         setLoadingStep(null);
     }
@@ -198,7 +221,6 @@ const handleGeneratePrompts = useCallback(async () => {
     if (!story || !story.script) return;
     
     setLoadingStep(Step.PROMPT_GENERATION);
-    setError(null);
     setStep(Step.PROMPT_GENERATION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
@@ -210,8 +232,7 @@ const handleGeneratePrompts = useCallback(async () => {
 
         setStep(Step.PROMPTS_GENERATED);
     } catch (err: any) {
-        setError(`Không thể tạo gợi ý hình ảnh: ${err.message}. Vui lòng kiểm tra API key và cấu hình mô hình của bạn.`);
-        console.error(err);
+        handleApiError(err, 'tạo gợi ý hình ảnh');
     } finally {
         setLoadingStep(null);
     }
@@ -222,7 +243,7 @@ const handleGeneratePrompts = useCallback(async () => {
     setStories([]);
     setSelectedStoryId(null);
     setLoadingStep(null);
-    setError(null);
+    setToasts([]);
     setUserIdea('');
     setAspectRatio('16:9');
     setMood(moodOptions[0].value);
@@ -232,7 +253,7 @@ const handleGeneratePrompts = useCallback(async () => {
 
   const handleSaveSession = () => {
     if (selectedStoryId === null) {
-      console.warn("Lưu phiên làm việc được gọi khi chưa có câu chuyện nào được chọn.");
+      addToast("Không thể lưu", "Vui lòng chọn hoặc tạo một câu chuyện trước.", "info");
       return;
     }
 
@@ -251,16 +272,14 @@ const handleGeneratePrompts = useCallback(async () => {
     let updatedSessions;
 
     if (existingSessionIndex > -1) {
-        // Update existing session
         const updatedSession = {
             ...existingSessions[existingSessionIndex],
             state: currentState,
-            createdAt: new Date().toISOString(), // Update timestamp
+            createdAt: new Date().toISOString(),
         };
         existingSessions[existingSessionIndex] = updatedSession;
         updatedSessions = existingSessions;
     } else {
-        // Add new session
         const newSession: Session = {
             id: crypto.randomUUID(),
             name: sessionName,
@@ -271,11 +290,7 @@ const handleGeneratePrompts = useCallback(async () => {
     }
 
     localStorage.setItem('animationStudioSessions', JSON.stringify(updatedSessions));
-    
-    setIsJustSaved(true);
-    setTimeout(() => {
-        setIsJustSaved(false);
-    }, 2500);
+    addToast('Lưu thành công!', `Phiên "${sessionName}" đã được lưu vào thư viện.`, 'success');
   };
 
   const handleLoadSession = (session: Session) => {
@@ -288,9 +303,10 @@ const handleGeneratePrompts = useCallback(async () => {
     setTheme(s.theme);
     setAspectRatio(s.aspectRatio || '16:9');
     setMood(s.mood || moodOptions[0].value);
-    setError(null);
+    setToasts([]);
     setLoadingStep(null);
-    setIsLibraryModalOpen(false); // Close modal on load
+    setIsLibraryModalOpen(false);
+    addToast('Tải thành công!', `Đã tải phiên làm việc "${session.name}".`, 'success');
   };
 
   const selectedStory = stories.find(s => s.id === selectedStoryId) || null;
@@ -320,7 +336,7 @@ const handleGeneratePrompts = useCallback(async () => {
         };
         reader.readAsText(file);
     } else {
-        alert("Vui lòng tải lên một tệp .txt hợp lệ.");
+        addToast("Tệp không hợp lệ", "Vui lòng tải lên một tệp .txt hợp lệ.", "error");
         setUploadedScript('');
         setUploadedFileName('');
     }
@@ -353,6 +369,7 @@ const handleGeneratePrompts = useCallback(async () => {
 
   return (
     <div style={appStyle} className="min-h-screen bg-gray-900 text-gray-100 font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="w-full max-w-5xl">
         <header className="text-center mb-8">
           <div 
@@ -375,26 +392,15 @@ const handleGeneratePrompts = useCallback(async () => {
           <div className="flex justify-center items-center gap-2 mt-6">
              <button
                 onClick={handleSaveSession}
-                disabled={selectedStoryId === null || isJustSaved}
+                disabled={selectedStoryId === null}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors font-medium ${
-                    isJustSaved
-                        ? 'bg-green-500/20 text-green-300 cursor-default'
-                        : selectedStoryId === null
+                    selectedStoryId === null
                         ? 'bg-gray-700/30 text-gray-500 cursor-not-allowed'
                         : 'bg-gray-700/50 hover:bg-gray-600/70 text-gray-200'
                 }`}
                 >
-                {isJustSaved ? (
-                    <>
-                    <CheckIcon className="w-5 h-5" />
-                    <span>Đã lưu</span>
-                    </>
-                ) : (
-                    <>
-                    <BookmarkSquareIcon className="w-5 h-5" />
-                    <span>Lưu Phiên</span>
-                    </>
-                )}
+                <BookmarkSquareIcon className="w-5 h-5" />
+                <span>Lưu Phiên</span>
             </button>
               <button onClick={() => setIsLibraryModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                <FolderOpenIcon className="w-5 h-5"/>
@@ -408,7 +414,7 @@ const handleGeneratePrompts = useCallback(async () => {
         </div>
         </header>
 
-        <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} onSave={handleApiModalSave} />
+        <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} onSave={handleApiModalSave} addToast={addToast} />
         <LibraryModal isOpen={isLibraryModalOpen} onClose={() => setIsLibraryModalOpen(false)} onLoadSession={handleLoadSession} />
 
         <main className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-black/30 p-6 ring-1 ring-white/10">
@@ -422,10 +428,6 @@ const handleGeneratePrompts = useCallback(async () => {
                 !!selectedStory?.prompts && selectedStory.prompts.length > 0,
             ]}
            />
-
-          {error && <div className="bg-red-500/20 text-red-300 p-3 rounded-lg my-4 ring-1 ring-red-500/30">{error}</div>}
-
-          
             
               {step === Step.IDEATION && (
                  <div>
