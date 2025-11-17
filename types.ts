@@ -96,6 +96,7 @@ export interface Session {
     aspectRatio: '9:16' | '16:9';
     mood: string;
     visualStyle: VisualStyle;
+    selectedCharacter: LibraryCharacter | null;
   };
 }
 

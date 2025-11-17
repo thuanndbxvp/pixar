@@ -242,18 +242,19 @@ This is not a script yet. Write it as cinematic prose.
 The expanded story should be about 300-400 words.
 `;
 
-export const getStep3Prompt = (expandedStory: string, aspectRatio: '9:16' | '16:9', visualStyle?: VisualStyle): string => {
+export const getStep3Prompt = (expandedStory: string, aspectRatio: '9:16' | '16:9', visualStyle: VisualStyle, selectedCharacter: LibraryCharacter | null): string => {
     let characterDefinitionInstruction: string;
 
-    if (visualStyle && visualStyle.type === 'character') {
+    if (selectedCharacter) {
+        const characterDescription = `Character Name: ${selectedCharacter.name}\nSpecies: ${selectedCharacter.species}\nDetailed Appearance: ${selectedCharacter.detailedAppearance}\nVisual Style Keywords: ${selectedCharacter.visualStyleKeywords}`;
         characterDefinitionInstruction = `
 1.  **USE PREDEFINED CHARACTER:**
-    - The user has selected a character from the library or created one via image analysis. You MUST use the following character definition exactly as provided. The story should be adapted to feature this character as the protagonist.
+    - The user has selected a character. You MUST use the following character definition exactly as provided. The story should be adapted to feature this character as the protagonist.
     - Present this character under a "CHARACTERS" heading. This cast is now LOCKED.
 
 CHARACTER DEFINITION TO USE:
 ---
-${visualStyle.description}
+${characterDescription}
 ---
         `;
     } else {
@@ -261,7 +262,7 @@ ${visualStyle.description}
 1.  **ANALYZE & DEFINE THE CHARACTER(S):**
     - Carefully read the expanded story to identify the main character(s).
     - Determine their species (e.g., dog, elephant, chicken, robot etc.) based on the narrative.
-    - For each character, create a detailed description using the provided CHARACTER SCHEMA. The 'Species' field MUST be filled in based on your analysis of the story.
+    - For each character, create a detailed description using the provided CHARACTER SCHEMA. The 'Species' field MUST be filled in based on your analysis of the story. The 'Visual Style Keywords' MUST align with the overall style: ${visualStyle.description}.
     - Present the final cast first under a "CHARACTERS" heading. This cast is now LOCKED and must be used consistently.
         `;
     }

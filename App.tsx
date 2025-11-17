@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as geminiService from './services/geminiService';
 import * as openaiService from './services/openaiService';
-import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig, Session, Toast, VisualStyle } from './types';
+import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig, Session, Toast, VisualStyle, LibraryCharacter } from './types';
 import { Step } from './types';
 import { themeColors } from './themes';
 import StorySelection from './components/StorySelection';
@@ -50,6 +50,7 @@ const App: React.FC = () => {
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [visualStyle, setVisualStyle] = useState<VisualStyle>(PREDEFINED_STYLES[0]);
+  const [selectedCharacter, setSelectedCharacter] = useState<LibraryCharacter | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const removeToast = (id: string) => {
@@ -198,7 +199,7 @@ const App: React.FC = () => {
     setStep(Step.SCRIPT_GENERATION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-        const generatedScript = await service.createScriptFromStory(story.expandedStory, aiConfig.model, aspectRatio, mood, visualStyle);
+        const generatedScript = await service.createScriptFromStory(story.expandedStory, aiConfig.model, aspectRatio, mood, visualStyle, selectedCharacter);
         
         setStories(prevStories => prevStories.map(s => 
             s.id === selectedStoryId ? { ...s, script: generatedScript, prompts: [] } : s
@@ -210,7 +211,7 @@ const App: React.FC = () => {
     } finally {
         setLoadingStep(null);
     }
-  }, [stories, selectedStoryId, aiConfig, aspectRatio, mood, visualStyle]);
+  }, [stories, selectedStoryId, aiConfig, aspectRatio, mood, visualStyle, selectedCharacter]);
 
   const handleGeneratePrompts = useCallback(async () => {
     if (selectedStoryId === null || !aiConfig) return;
@@ -248,6 +249,7 @@ const App: React.FC = () => {
     setUploadedScript('');
     setUploadedFileName('');
     setVisualStyle(PREDEFINED_STYLES[0]);
+    setSelectedCharacter(null);
   };
 
   const handleSaveSession = () => {
@@ -261,7 +263,7 @@ const App: React.FC = () => {
     const sessionName = storyToGetName.title;
 
     const currentState = {
-        step, stories, selectedStoryId, userIdea, aiConfig, theme, aspectRatio, mood, visualStyle
+        step, stories, selectedStoryId, userIdea, aiConfig, theme, aspectRatio, mood, visualStyle, selectedCharacter
     };
     
     const existingSessions: Session[] = JSON.parse(localStorage.getItem('animationStudioSessions') || '[]');
@@ -303,6 +305,7 @@ const App: React.FC = () => {
     setAspectRatio(s.aspectRatio || '16:9');
     setMood(s.mood || moodOptions[0].value);
     setVisualStyle(s.visualStyle || PREDEFINED_STYLES[0]);
+    setSelectedCharacter(s.selectedCharacter || null);
     setToasts([]);
     setLoadingStep(null);
     setIsLibraryModalOpen(false);
@@ -360,18 +363,16 @@ const App: React.FC = () => {
     setStep(Step.SCRIPT_GENERATED);
   }, [uploadedScript, uploadedFileName]);
   
-  const handleSaveStyle = (newStyle: VisualStyle) => {
-    const oldStyleType = visualStyle.type;
+  const handleDirectorSave = (newStyle: VisualStyle, newCharacter: LibraryCharacter | null) => {
     setVisualStyle(newStyle);
+    setSelectedCharacter(newCharacter);
     setIsStyleModalOpen(false);
     
-    if (newStyle.type === 'character') {
-        addToast('Lưu Nhân vật thành công!', `Đã chọn nhân vật "${newStyle.name}".`, 'success');
-        if (oldStyleType !== 'character' || newStyle.id !== visualStyle.id) {
-            addToast('Cần cập nhật kịch bản', 'Hãy tạo lại kịch bản để áp dụng nhân vật mới.', 'info');
-        }
+    addToast('Lưu cài đặt đạo diễn!', `Đã áp dụng phong cách "${newStyle.name}".`, 'success');
+    if (newCharacter) {
+        addToast('Nhân vật đã được chọn', `Nhân vật "${newCharacter.name}" sẽ được sử dụng.`, 'info');
     } else {
-        addToast('Lưu Phong cách thành công!', `Đã áp dụng phong cách "${newStyle.name}".`, 'success');
+        addToast('Nhân vật sẽ do AI tạo', 'AI sẽ tự động tạo nhân vật dựa trên câu chuyện.', 'info');
     }
   }
 
@@ -424,7 +425,7 @@ const App: React.FC = () => {
              </button>
              <button onClick={() => setIsStyleModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                <PaintBrushIcon className="w-5 h-5"/>
-               <span>Quản lý Phong cách</span>
+               <span>Đạo diễn</span>
              </button>
             <button onClick={() => setIsApiModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors">
                <KeyIcon className="w-5 h-5"/>
@@ -439,8 +440,9 @@ const App: React.FC = () => {
         <StyleModal 
             isOpen={isStyleModalOpen} 
             onClose={() => setIsStyleModalOpen(false)}
-            onSave={handleSaveStyle}
+            onSave={handleDirectorSave}
             currentStyle={visualStyle}
+            currentCharacter={selectedCharacter}
             aiConfig={aiConfig}
             addToast={addToast}
             aspectRatio={aspectRatio}

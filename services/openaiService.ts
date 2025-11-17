@@ -1,4 +1,4 @@
-import type { Story, ScenePrompt, ApiKeyStore, VisualStyle } from '../types';
+import type { Story, ScenePrompt, ApiKeyStore, VisualStyle, LibraryCharacter } from '../types';
 import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4PromptOpenAI, getRolePrompt, getRolePromptNoTranslation, getAnalyzeImagePrompt } from '../constants';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -107,10 +107,10 @@ export const expandStory = async (storyContent: string, model: string, mood: str
     return await callOpenAI(messages, model);
 };
 
-export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string, visualStyle: VisualStyle): Promise<string> => {
-    const prompt = getStep3Prompt(expandedStory, aspectRatio, visualStyle);
+export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string, visualStyle: VisualStyle, selectedCharacter: LibraryCharacter | null): Promise<string> => {
+    const prompt = getStep3Prompt(expandedStory, aspectRatio, visualStyle, selectedCharacter);
     const messages = [
-        { role: 'system', content: getRolePromptNoTranslation(mood) },
+        { role: 'system', content: getRolePromptNoTranslation(mood, visualStyle.description) },
         { role: 'user', content: prompt }
     ];
     return await callOpenAI(messages, model);

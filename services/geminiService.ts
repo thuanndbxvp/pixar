@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import type { Story, ScenePrompt, ApiKeyStore, VisualStyle } from '../types';
+import type { Story, ScenePrompt, ApiKeyStore, VisualStyle, LibraryCharacter } from '../types';
 import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, getRolePrompt, getRolePromptNoTranslation, getAnalyzeImagePrompt } from '../constants';
 
 const getGeminiApiKey = (): string | null => {
@@ -119,15 +119,15 @@ export const expandStory = async (storyContent: string, model: string, mood: str
     }
 };
 
-export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string, visualStyle: VisualStyle): Promise<string> => {
+export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string, visualStyle: VisualStyle, selectedCharacter: LibraryCharacter | null): Promise<string> => {
     try {
         const ai = getAiClient();
-        const prompt = getStep3Prompt(expandedStory, aspectRatio, visualStyle);
+        const prompt = getStep3Prompt(expandedStory, aspectRatio, visualStyle, selectedCharacter);
         const response = await ai.models.generateContent({
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
              config: {
-                systemInstruction: getRolePromptNoTranslation(mood),
+                systemInstruction: getRolePromptNoTranslation(mood, visualStyle.description),
                 temperature: 0.7,
             }
         });
