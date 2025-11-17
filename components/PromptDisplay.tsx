@@ -286,6 +286,34 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         });
     };
 
+    const handleDownloadPrompts = () => {
+        if (prompts.length === 0) return;
+
+        const content = prompts.map(p => 
+            `--- Cảnh ${p.scene_number} ---\n\n` +
+            `Mô tả cảnh:\n${p.scene_text}\n\n` +
+            `Gợi ý Hình ảnh:\n${p.image_prompt}\n\n` +
+            `Gợi ý Video:\n${p.video_prompt}`
+        ).join('\n\n\n');
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+
+        const cleanTitle = (storyTitle || 'animation_prompts')
+            .split('(')[0].trim()
+            .replace(/\s+/g, '_')
+            .replace(/[^a-zA-Z0-9_]/g, '')
+            .toLowerCase();
+
+        link.download = `${cleanTitle}_prompts.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     const formatPromptsForTranslation = (): string => {
       return prompts.map(p => 
         `--- Cảnh ${p.scene_number} ---\n\nMô tả cảnh:\n${p.scene_text}\n\nGợi ý Hình ảnh:\n${p.image_prompt}\n\nGợi ý Video:\n${p.video_prompt}`
@@ -355,12 +383,9 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                          <span>Dịch</span>
                       </button>
                      <button
-                          onClick={() => {
-                              const textToCopy = prompts.map(p => p.image_prompt).join('\n\n---\n\n');
-                              navigator.clipboard.writeText(textToCopy);
-                          }}
+                          onClick={handleDownloadPrompts}
                           className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
-                          title="Tải về"
+                          title="Tải về tất cả gợi ý (.txt)"
                         >
                           <ArrowDownTrayIcon className="w-5 h-5" />
                           <span>Tải về</span>
