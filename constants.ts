@@ -9,43 +9,25 @@ export const AI_MODELS = {
   ],
 };
 
-export const ROLE_PROMPT = `
-You are a 3D animated short writer–director in the Pixar-like style: grounded, emotionally rich everyday stories with a strong, logical twist.
+const baseRolePrompt = `
+You are a 3D animated short writer–director in the Pixar-like style: grounded, emotionally rich everyday stories with a strong, logical twist.`;
 
+const globalRulesWithTranslation = `
 GLOBAL RULES:
 1. All generated content (story titles, story content, character descriptions, scene descriptions, prompts) MUST be in English.
 2. After each piece of English text, you MUST provide a concise Vietnamese translation in parentheses. For example: "STORY TITLE: The Last Coin (Đồng Xu Cuối Cùng)" or "Setting: A rainy alley at night. (Bối cảnh: Một con hẻm mưa vào ban đêm.)"
 3. No dialogue anywhere. Everything is conveyed via action, light, blocking, and facial expression.
 4. Maintain a consistent visual style throughout: Pixar-like 3D — anthropomorphic cat — ultra detailed — cinematic lighting — soft shadows — emotional realism.
-5. Every scene and every prompt (image + video) must repeat the full character description verbatim once characters are locked.
+5. Every scene and every prompt (image + video) must repeat the full character description verbatim once characters are locked.`;
 
-CHARACTER SCHEMA (to be used after story selection):
-Character Name: [A fitting proper name, e.g., Neko, Mimi, Shadow…]
-Species: Anthropomorphic cat.
-Detailed Appearance:
-Human-proportioned body, cat head; cat ears, large expressive eyes, soft expressive tail.
-Fine, detailed fur; Pixar-like 3D materials and lighting feel.
-Everyday clothing: denim jacket, hoodie dress, shirt, shorts, etc.
-Soft, realistic light response on skin/fur.
-Visual Style Keywords: 3D animation, anthropomorphic cat, ultra detailed, cinematic lighting, soft shadows, emotional realism.
-
-Example Character Description:
-Neko (anthropomorphic gray cat):
-Slender build; ash-gray fur cat head; pointed ears; long thin tail.
-Wears a faded, scuffed denim jacket and dark khaki pants.
-Large amber eyes; slightly tousled fur; warm reflective lighting.
-Style: Pixar-like 3D, anthropomorphic cat, ultra detailed, warm cinematic lighting.
-`;
-
-export const ROLE_PROMPT_NO_TRANSLATION = `
-You are a 3D animated short writer–director in the Pixar-like style: grounded, emotionally rich everyday stories with a strong, logical twist.
-
+const globalRulesNoTranslation = `
 GLOBAL RULES:
 1. All generated content MUST be in English. Do not add any Vietnamese translations.
 2. No dialogue anywhere. Everything is conveyed via action, light, blocking, and facial expression.
 3. Maintain a consistent visual style throughout: Pixar-like 3D — anthropomorphic cat — ultra detailed — cinematic lighting — soft shadows — emotional realism.
-4. Every scene and every prompt (image + video) must repeat the full character description verbatim once characters are locked.
+4. Every scene and every prompt (image + video) must repeat the full character description verbatim once characters are locked.`;
 
+const characterSchema = `
 CHARACTER SCHEMA (to be used after story selection):
 Character Name: [A fitting proper name, e.g., Neko, Mimi, Shadow…]
 Species: Anthropomorphic cat.
@@ -64,9 +46,24 @@ Large amber eyes; slightly tousled fur; warm reflective lighting.
 Style: Pixar-like 3D, anthropomorphic cat, ultra detailed, warm cinematic lighting.
 `;
 
-export const STEP_1_PROMPT = `
-${ROLE_PROMPT}
+const getMoodRule = (mood?: string, ruleNumber: number = 6): string => {
+    return mood ? `\n${ruleNumber}. The overall mood and tone MUST be ${mood}. This should be reflected in the plot, descriptions, lighting, and character emotions.` : '';
+}
 
+export const getRolePrompt = (mood?: string): string => `
+${baseRolePrompt}
+${globalRulesWithTranslation}${getMoodRule(mood)}
+${characterSchema}
+`;
+
+export const getRolePromptNoTranslation = (mood?: string): string => `
+${baseRolePrompt}
+${globalRulesNoTranslation}${getMoodRule(mood)}
+${characterSchema}
+`;
+
+
+export const STEP_1_PROMPT = `
 WORKFLOW STEP 1 — GENERATE 5–7 ORIGINAL MICRO-STORIES
 
 Write 6 standalone short stories, each designed for a 60–90 second film.
@@ -81,8 +78,6 @@ Format the output clearly. For each story, start with "STORY TITLE:" on one line
 `;
 
 export const getStep1FromSeedPrompt = (seedIdea: string): string => `
-${ROLE_PROMPT}
-
 WORKFLOW STEP 1 — GENERATE 6 ORIGINAL MICRO-STORIES FROM A SEED IDEA
 
 The user has provided the following initial idea:
@@ -103,8 +98,6 @@ Format the output clearly. For each story, start with "STORY TITLE:" on one line
 `;
 
 export const getStep2Prompt = (storyContent: string): string => `
-${ROLE_PROMPT_NO_TRANSLATION}
-
 WORKFLOW STEP 2 — EXPAND STORY
 
 The user has selected the following micro-story:
@@ -126,8 +119,6 @@ The expanded story should be about 300-400 words.
 `;
 
 export const getStep3Prompt = (expandedStory: string, aspectRatio: '9:16' | '16:9'): string => `
-${ROLE_PROMPT_NO_TRANSLATION}
-
 WORKFLOW STEP 3 — LOCK CAST & CREATE SCRIPT
 
 The user has approved the following expanded story:
@@ -152,8 +143,6 @@ export const getStep4Prompt = (script: string, aspectRatio: '9:16' | '16:9'): st
     const formatString = aspectRatio === '9:16' ? '9:16 vertical' : '16:9 horizontal';
     const formatInstruction = aspectRatio === '9:16' ? 'VERTICAL 9:16' : 'HORIZONTAL 16:9';
     return `
-${ROLE_PROMPT_NO_TRANSLATION}
-
 WORKFLOW STEP 4 — CREATE IMAGE & VIDEO PROMPTS (${formatInstruction})
 
 Based on the following script, produce a separate image prompt and a matching motion video prompt for each scene.
@@ -197,8 +186,6 @@ export const getStep4PromptOpenAI = (script: string, aspectRatio: '9:16' | '16:9
     const formatString = aspectRatio === '9:16' ? '9:16 vertical' : '16:9 horizontal';
     const formatInstruction = aspectRatio === '9:16' ? 'VERTICAL 9:16' : 'HORIZONTAL 16:9';
     return `
-${ROLE_PROMPT_NO_TRANSLATION}
-
 WORKFLOW STEP 4 — CREATE IMAGE & VIDEO PROMPTS (${formatInstruction})
 
 Based on the following script, produce prompts for each scene.

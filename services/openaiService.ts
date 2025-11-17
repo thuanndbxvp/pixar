@@ -1,5 +1,5 @@
 import type { Story, ScenePrompt, ApiKeyStore } from '../types';
-import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4PromptOpenAI, ROLE_PROMPT_NO_TRANSLATION } from '../constants';
+import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4PromptOpenAI, getRolePrompt, getRolePromptNoTranslation } from '../constants';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
@@ -77,47 +77,47 @@ const callOpenAI = async (messages: any[], model: string, jsonMode: boolean = fa
     return data.choices[0].message.content;
 };
 
-export const generateStoryIdeas = async (model: string): Promise<Story[]> => {
+export const generateStoryIdeas = async (model: string, mood: string): Promise<Story[]> => {
     const messages = [
-        { role: 'system', content: ROLE_PROMPT },
+        { role: 'system', content: getRolePrompt(mood) },
         { role: 'user', content: STEP_1_PROMPT }
     ];
     const responseText = await callOpenAI(messages, model);
     return parseStoriesOpenAI(responseText);
 };
 
-export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string): Promise<Story[]> => {
+export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string, mood: string): Promise<Story[]> => {
     const prompt = getStep1FromSeedPrompt(seedIdea);
     const messages = [
-        { role: 'system', content: ROLE_PROMPT },
+        { role: 'system', content: getRolePrompt(mood) },
         { role: 'user', content: prompt }
     ];
     const responseText = await callOpenAI(messages, model);
     return parseStoriesOpenAI(responseText);
 };
 
-export const expandStory = async (storyContent: string, model: string): Promise<string> => {
+export const expandStory = async (storyContent: string, model: string, mood: string): Promise<string> => {
     const prompt = getStep2Prompt(storyContent);
     const messages = [
-        { role: 'system', content: ROLE_PROMPT_NO_TRANSLATION },
+        { role: 'system', content: getRolePromptNoTranslation(mood) },
         { role: 'user', content: prompt }
     ];
     return await callOpenAI(messages, model);
 };
 
-export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
+export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string): Promise<string> => {
     const prompt = getStep3Prompt(expandedStory, aspectRatio);
     const messages = [
-        { role: 'system', content: ROLE_PROMPT_NO_TRANSLATION },
+        { role: 'system', content: getRolePromptNoTranslation(mood) },
         { role: 'user', content: prompt }
     ];
     return await callOpenAI(messages, model);
 };
 
-export const generateVisualPrompts = async (script: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<ScenePrompt[]> => {
+export const generateVisualPrompts = async (script: string, model: string, aspectRatio: '9:16' | '16:9', mood: string): Promise<ScenePrompt[]> => {
     const prompt = getStep4PromptOpenAI(script, aspectRatio);
     const messages = [
-        { role: 'system', content: ROLE_PROMPT_NO_TRANSLATION },
+        { role: 'system', content: getRolePromptNoTranslation(mood) },
         { role: 'user', content: prompt }
     ];
 

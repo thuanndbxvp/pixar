@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import * as geminiService from './services/geminiService';
 import * as openaiService from './services/openaiService';
 import type { Story, AppStep, ScenePrompt, ThemeName, AIConfig, Session } from './types';
@@ -14,8 +14,21 @@ import ActionButton from './components/ActionButton';
 import ApiKeyModal from './components/ApiKeyModal';
 import LibraryModal from './components/LibraryModal';
 import ThemePicker from './components/ThemePicker';
-import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon, BookmarkSquareIcon, FolderOpenIcon, CheckIcon, ViewColumnsIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
+import { FilmIcon, SparklesIcon, Bars3BottomLeftIcon, PhotoIcon, KeyIcon, BookmarkSquareIcon, FolderOpenIcon, CheckIcon, ViewColumnsIcon, ArrowUpTrayIcon } from '@heroicons/react/24/solid';
 import { AI_MODELS } from './constants';
+
+const moodOptions = [
+  { value: 'Inspirational', label: 'Truyền cảm hứng' },
+  { value: 'Emotional / Heartwarming', label: 'Cảm động / Xúc động' },
+  { value: 'Joyful / Humorous', label: 'Vui tươi / Hài hước' },
+  { value: 'Sad / Melancholic', label: 'Buồn bã / U sầu' },
+  { value: 'Dramatic', label: 'Kịch tính' },
+  { value: 'Romantic', label: 'Lãng mạn' },
+  { value: 'Suspenseful / Tense', label: 'Hồi hộp / Căng thẳng' },
+  { value: 'Dark / Grim', label: 'Tăm tối / U ám' },
+  { value: 'Fantasy / Dreamy', label: 'Kỳ ảo / Mộng mị' },
+  { value: 'Calm / Serene', label: 'Bình yên / Chậm rãi' },
+];
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(Step.IDEATION);
@@ -31,6 +44,11 @@ const App: React.FC = () => {
   const [isJustSaved, setIsJustSaved] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('16:9');
   const [prevLoadingStep, setPrevLoadingStep] = useState<AppStep | null>(null);
+  const [mood, setMood] = useState<string>(moodOptions[0].value);
+  const [uploadedScript, setUploadedScript] = useState<string>('');
+  const [uploadedFileName, setUploadedFileName] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const loadAiConfig = useCallback(() => {
     const storedConfig = localStorage.getItem('aiConfig');
@@ -82,7 +100,7 @@ const App: React.FC = () => {
     setError(null);
     try {
       const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-      const generatedStories = await service.generateStoryIdeas(aiConfig.model);
+      const generatedStories = await service.generateStoryIdeas(aiConfig.model, mood);
       setStories(generatedStories);
       setStep(Step.STORY_SELECTION);
     } catch (err: any) {
@@ -91,7 +109,7 @@ const App: React.FC = () => {
     } finally {
       setLoadingStep(null);
     }
-  }, [aiConfig]);
+  }, [aiConfig, mood]);
 
   const handleDevelopUserIdea = useCallback(async () => {
     if (!userIdea.trim() || !aiConfig) return;
@@ -100,7 +118,7 @@ const App: React.FC = () => {
     setError(null);
     try {
       const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-      const generatedStories = await service.generateStoryIdeasFromSeed(userIdea, aiConfig.model);
+      const generatedStories = await service.generateStoryIdeasFromSeed(userIdea, aiConfig.model, mood);
       setStories(generatedStories);
       setStep(Step.STORY_SELECTION);
     } catch (err: any) {
@@ -110,7 +128,7 @@ const App: React.FC = () => {
     } finally {
       setLoadingStep(null);
     }
-  }, [userIdea, aiConfig]);
+  }, [userIdea, aiConfig, mood]);
 
   const handleSelectStory = useCallback(async (story: Story) => {
     if (!aiConfig) return;
@@ -127,7 +145,7 @@ const App: React.FC = () => {
     setStep(Step.STORY_EXPANSION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-        const expandedStoryContent = await service.expandStory(story.content, aiConfig.model);
+        const expandedStoryContent = await service.expandStory(story.content, aiConfig.model, mood);
         
         setStories(prevStories => prevStories.map(s => 
             s.id === story.id ? { ...s, expandedStory: expandedStoryContent, script: '', prompts: [] } : s
@@ -140,7 +158,7 @@ const App: React.FC = () => {
     } finally {
         setLoadingStep(null);
     }
-  }, [aiConfig]);
+  }, [aiConfig, mood]);
 
   const handleGenerateScript = useCallback(async () => {
     if (selectedStoryId === null || !aiConfig) return;
@@ -158,7 +176,7 @@ const App: React.FC = () => {
     setStep(Step.SCRIPT_GENERATION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-        const generatedScript = await service.createScriptFromStory(story.expandedStory, aiConfig.model, aspectRatio);
+        const generatedScript = await service.createScriptFromStory(story.expandedStory, aiConfig.model, aspectRatio, mood);
         
         setStories(prevStories => prevStories.map(s => 
             s.id === selectedStoryId ? { ...s, script: generatedScript, prompts: [] } : s
@@ -171,7 +189,7 @@ const App: React.FC = () => {
     } finally {
         setLoadingStep(null);
     }
-  }, [stories, selectedStoryId, aiConfig, aspectRatio]);
+  }, [stories, selectedStoryId, aiConfig, aspectRatio, mood]);
 
 const handleGeneratePrompts = useCallback(async () => {
     if (selectedStoryId === null || !aiConfig) return;
@@ -184,7 +202,7 @@ const handleGeneratePrompts = useCallback(async () => {
     setStep(Step.PROMPT_GENERATION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-        const visualPrompts = await service.generateVisualPrompts(story.script, aiConfig.model, aspectRatio);
+        const visualPrompts = await service.generateVisualPrompts(story.script, aiConfig.model, aspectRatio, mood);
         
         setStories(prevStories => prevStories.map(s => 
             s.id === selectedStoryId ? { ...s, prompts: visualPrompts } : s
@@ -197,7 +215,7 @@ const handleGeneratePrompts = useCallback(async () => {
     } finally {
         setLoadingStep(null);
     }
-}, [stories, selectedStoryId, aiConfig, aspectRatio]);
+}, [stories, selectedStoryId, aiConfig, aspectRatio, mood]);
   
   const handleReset = () => {
     setStep(Step.IDEATION);
@@ -207,6 +225,9 @@ const handleGeneratePrompts = useCallback(async () => {
     setError(null);
     setUserIdea('');
     setAspectRatio('16:9');
+    setMood(moodOptions[0].value);
+    setUploadedScript('');
+    setUploadedFileName('');
   };
 
   const handleSaveSession = () => {
@@ -220,7 +241,7 @@ const handleGeneratePrompts = useCallback(async () => {
     const sessionName = storyToGetName.title;
 
     const currentState = {
-        step, stories, selectedStoryId, userIdea, aiConfig, theme, aspectRatio
+        step, stories, selectedStoryId, userIdea, aiConfig, theme, aspectRatio, mood
     };
     
     const existingSessions: Session[] = JSON.parse(localStorage.getItem('animationStudioSessions') || '[]');
@@ -266,6 +287,7 @@ const handleGeneratePrompts = useCallback(async () => {
     setAiConfig(s.aiConfig);
     setTheme(s.theme);
     setAspectRatio(s.aspectRatio || '16:9');
+    setMood(s.mood || moodOptions[0].value);
     setError(null);
     setLoadingStep(null);
     setIsLibraryModalOpen(false); // Close modal on load
@@ -286,6 +308,40 @@ const handleGeneratePrompts = useCallback(async () => {
         setStep(Step.PROMPTS_GENERATED);
     }
   };
+
+  const handleScriptUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'text/plain') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result as string;
+            setUploadedScript(text);
+            setUploadedFileName(file.name);
+        };
+        reader.readAsText(file);
+    } else {
+        alert("Vui lòng tải lên một tệp .txt hợp lệ.");
+        setUploadedScript('');
+        setUploadedFileName('');
+    }
+  };
+
+  const handleUseUploadedScript = useCallback(async () => {
+    if (!uploadedScript) return;
+    
+    const newStory: Story = {
+        id: 0,
+        title: uploadedFileName || 'Kịch bản Tải lên',
+        content: `Kịch bản được tải lên bởi người dùng: ${uploadedFileName}`,
+        expandedStory: `Kịch bản được tải lên bởi người dùng: ${uploadedFileName}`,
+        script: uploadedScript,
+        prompts: []
+    };
+
+    setStories([newStory]);
+    setSelectedStoryId(newStory.id);
+    setStep(Step.SCRIPT_GENERATED);
+  }, [uploadedScript, uploadedFileName]);
   
   const currentTheme = themeColors[theme];
   const appStyle = {
@@ -372,7 +428,7 @@ const handleGeneratePrompts = useCallback(async () => {
           
             
               {step === Step.IDEATION && (
-                <div className="text-center">
+                 <div>
                     <div className="mb-8 flex justify-center">
                         <div className="max-w-xs w-full">
                             <label htmlFor="aspectRatio" className="block text-sm font-medium text-gray-300 mb-2 text-center">Định dạng Khung hình</label>
@@ -390,40 +446,86 @@ const handleGeneratePrompts = useCallback(async () => {
 
                     <div className="relative flex py-5 items-center">
                         <div className="flex-grow border-t border-gray-700"></div>
-                        <span className="flex-shrink mx-4 text-gray-500 text-sm">BƯỚC 1</span>
+                        <span className="flex-shrink mx-4 text-gray-500 text-sm">BƯỚC 1: CUNG CẤP Ý TƯỞNG</span>
                         <div className="flex-grow border-t border-gray-700"></div>
                     </div>
 
+                    <div className="grid md:grid-cols-2 gap-8 items-start mt-6">
+                        {/* Left Column: Generate Idea */}
+                        <div className="text-center bg-gray-900/50 p-6 rounded-lg ring-1 ring-gray-700 h-full flex flex-col">
+                            <h3 className="text-lg font-semibold text-center mb-2 text-gray-200">Phát triển ý tưởng với AI</h3>
+                            <p className="text-gray-400 mb-4 text-sm">Cung cấp ý tưởng, chọn cảm xúc, và để AI phát triển thành câu chuyện.</p>
+                            
+                            <div className="mb-4">
+                                <label htmlFor="mood" className="block text-sm font-medium text-gray-300 mb-2">Cảm xúc câu chuyện</label>
+                                <select id="mood" value={mood} onChange={(e) => setMood(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:ring-2 focus:ring-[var(--theme-500)] focus:border-[var(--theme-500)]">
+                                    {moodOptions.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                            </div>
 
-                    <h3 className="text-lg font-semibold text-center mb-3 text-gray-300">Cung cấp ý tưởng</h3>
-                    <p className="text-gray-300 mb-4">Bạn có một ý tưởng sơ khai? Hãy nhập vào bên dưới để AI phát triển nó thành kịch bản.</p>
-                    <textarea
-                        className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-gray-200 focus:ring-2 focus:ring-[var(--theme-500)] focus:border-[var(--theme-500)] transition-colors mb-4"
-                        rows={4}
-                        placeholder="Nhập ý tưởng ban đầu của bạn ở đây... (ví dụ: một chú mèo máy du hành thời gian bị lạc trong thời La Mã cổ đại)"
-                        value={userIdea}
-                        onChange={(e) => setUserIdea(e.target.value)}
-                    />
-                    <ActionButton 
-                        onClick={handleDevelopUserIdea} 
-                        Icon={Bars3BottomLeftIcon} 
-                        text="Phát triển Ý tưởng" 
-                        disabled={!userIdea.trim() || loadingStep === Step.IDEATION}
-                    />
+                            <textarea
+                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-gray-200 focus:ring-2 focus:ring-[var(--theme-500)] focus:border-[var(--theme-500)] transition-colors mb-4"
+                                rows={3}
+                                placeholder="Nhập ý tưởng ban đầu của bạn ở đây..."
+                                value={userIdea}
+                                onChange={(e) => setUserIdea(e.target.value)}
+                            />
+                            <div className="mb-4">
+                               <ActionButton 
+                                    onClick={handleDevelopUserIdea} 
+                                    Icon={Bars3BottomLeftIcon} 
+                                    text="Phát triển Ý tưởng" 
+                                    disabled={!userIdea.trim() || loadingStep === Step.IDEATION}
+                                />
+                            </div>
 
-                    <div className="relative flex py-5 items-center">
-                        <div className="flex-grow border-t border-gray-700"></div>
-                        <span className="flex-shrink mx-4 text-gray-500">HOẶC</span>
-                        <div className="flex-grow border-t border-gray-700"></div>
+                            <div className="relative flex py-2 items-center">
+                                <div className="flex-grow border-t border-gray-700"></div>
+                                <span className="flex-shrink mx-4 text-gray-500 text-xs">HOẶC</span>
+                                <div className="flex-grow border-t border-gray-700"></div>
+                            </div>
+                            <p className="text-gray-400 my-2 text-sm">Chưa có ý tưởng? Hãy để AI tạo ra một vài câu chuyện độc đáo cho bạn.</p>
+                            <ActionButton 
+                                onClick={handleGenerateStories} 
+                                Icon={SparklesIcon} 
+                                text="Để AI Tạo Ý tưởng"
+                                disabled={loadingStep === Step.IDEATION}
+                            />
+                        </div>
+
+                        {/* Right Column: Upload Script */}
+                        <div className="text-center bg-gray-900/50 p-6 rounded-lg ring-1 ring-gray-700 h-full flex flex-col">
+                            <h3 className="text-lg font-semibold text-center mb-2 text-gray-200">Sử dụng kịch bản có sẵn</h3>
+                            <p className="text-gray-400 mb-4 text-sm">Tải lên một kịch bản (.txt) để đi thẳng đến bước tạo gợi ý hình ảnh.</p>
+                            
+                            <input type="file" accept=".txt" onChange={handleScriptUpload} className="hidden" ref={fileInputRef}/>
+                            <button 
+                                onClick={() => fileInputRef.current?.click()} 
+                                className="w-full flex items-center justify-center gap-2 text-center px-4 py-3 bg-gray-700/50 hover:bg-gray-600/70 rounded-lg text-sm transition-colors font-medium text-gray-200"
+                            >
+                               <ArrowUpTrayIcon className="w-5 h-5" />
+                               <span>Tải lên tệp .txt</span>
+                            </button>
+                            
+                            <textarea
+                                readOnly
+                                value={uploadedScript ? `Đã tải tệp: ${uploadedFileName}\n\n${uploadedScript.substring(0, 200)}${uploadedScript.length > 200 ? '...' : ''}` : 'Chưa có kịch bản nào được tải lên.'}
+                                className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-gray-400 mt-4 text-xs font-mono flex-grow"
+                                rows={6}
+                            />
+                            
+                            <div className="mt-4">
+                               <ActionButton 
+                                    onClick={handleUseUploadedScript} 
+                                    Icon={ViewColumnsIcon} 
+                                    text="Sử dụng Kịch bản này" 
+                                    disabled={!uploadedScript || loadingStep === Step.IDEATION}
+                                />
+                            </div>
+                        </div>
                     </div>
-
-                    <p className="text-gray-300 mb-6">Chưa có ý tưởng? Hãy để AI tạo ra một vài câu chuyện độc đáo cho bạn.</p>
-                    <ActionButton 
-                        onClick={handleGenerateStories} 
-                        Icon={SparklesIcon} 
-                        text="Để AI Tạo Ý tưởng"
-                        disabled={loadingStep === Step.IDEATION}
-                    />
                     {loadingStep === Step.IDEATION && <LoadingSpinner />}
                 </div>
               )}

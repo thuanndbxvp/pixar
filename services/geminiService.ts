@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Story, ScenePrompt, ApiKeyStore } from '../types';
-import { ROLE_PROMPT, STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, ROLE_PROMPT_NO_TRANSLATION } from '../constants';
+import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, getRolePrompt, getRolePromptNoTranslation } from '../constants';
 
 const getGeminiApiKey = (): string | null => {
     const storeStr = localStorage.getItem('apiKeyStore');
@@ -52,14 +52,14 @@ const parseStories = (responseText: string): Story[] => {
 };
 
 
-export const generateStoryIdeas = async (model: string): Promise<Story[]> => {
+export const generateStoryIdeas = async (model: string, mood: string): Promise<Story[]> => {
     try {
         const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: model,
             contents: [{ parts: [{ text: STEP_1_PROMPT }] }],
             config: {
-                systemInstruction: ROLE_PROMPT,
+                systemInstruction: getRolePrompt(mood),
                 temperature: 0.8,
             }
         });
@@ -74,7 +74,7 @@ export const generateStoryIdeas = async (model: string): Promise<Story[]> => {
     }
 };
 
-export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string): Promise<Story[]> => {
+export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string, mood: string): Promise<Story[]> => {
     try {
         const ai = getAiClient();
         const prompt = getStep1FromSeedPrompt(seedIdea);
@@ -82,7 +82,7 @@ export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
             config: {
-                systemInstruction: ROLE_PROMPT,
+                systemInstruction: getRolePrompt(mood),
                 temperature: 0.8,
             }
         });
@@ -97,7 +97,7 @@ export const generateStoryIdeasFromSeed = async (seedIdea: string, model: string
     }
 };
 
-export const expandStory = async (storyContent: string, model: string): Promise<string> => {
+export const expandStory = async (storyContent: string, model: string, mood: string): Promise<string> => {
     try {
         const ai = getAiClient();
         const prompt = getStep2Prompt(storyContent);
@@ -105,7 +105,7 @@ export const expandStory = async (storyContent: string, model: string): Promise<
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
             config: {
-                systemInstruction: ROLE_PROMPT_NO_TRANSLATION,
+                systemInstruction: getRolePromptNoTranslation(mood),
                 temperature: 0.7,
             }
         });
@@ -119,7 +119,7 @@ export const expandStory = async (storyContent: string, model: string): Promise<
     }
 };
 
-export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
+export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string): Promise<string> => {
     try {
         const ai = getAiClient();
         const prompt = getStep3Prompt(expandedStory, aspectRatio);
@@ -127,7 +127,7 @@ export const createScriptFromStory = async (expandedStory: string, model: string
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
              config: {
-                systemInstruction: ROLE_PROMPT_NO_TRANSLATION,
+                systemInstruction: getRolePromptNoTranslation(mood),
                 temperature: 0.7,
             }
         });
@@ -141,7 +141,7 @@ export const createScriptFromStory = async (expandedStory: string, model: string
     }
 };
 
-export const generateVisualPrompts = async (script: string, model: string, aspectRatio: '9:16' | '16:9'): Promise<ScenePrompt[]> => {
+export const generateVisualPrompts = async (script: string, model: string, aspectRatio: '9:16' | '16:9', mood: string): Promise<ScenePrompt[]> => {
     try {
         const ai = getAiClient();
         const prompt = getStep4Prompt(script, aspectRatio);
@@ -149,7 +149,7 @@ export const generateVisualPrompts = async (script: string, model: string, aspec
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
             config: {
-                systemInstruction: ROLE_PROMPT_NO_TRANSLATION,
+                systemInstruction: getRolePromptNoTranslation(mood),
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.ARRAY,

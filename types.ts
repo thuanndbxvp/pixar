@@ -69,5 +69,6 @@ export interface Session {
     aiConfig: AIConfig | null;
     theme: ThemeName;
     aspectRatio: '9:16' | '16:9';
+    mood: string;
   };
 }
