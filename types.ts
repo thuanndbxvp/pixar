@@ -63,6 +63,7 @@ export interface VisualStyle {
   type: VisualStyleType;
   name: string;
   description: string;
+  imageUrl?: string;
 }
 
 export interface Session {

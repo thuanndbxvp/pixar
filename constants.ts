@@ -15,32 +15,38 @@ export const PREDEFINED_STYLES: VisualStyle[] = [
     {
         type: 'predefined',
         name: 'Cổ điển Pixar',
-        description: `Style: Classic Pixar 3D — anthropomorphic cat with human-proportioned body and cat head/ears/tail. Ultra detailed, cinematic soft lighting, and emotional realism. Backgrounds are lively urban or indoor spaces.`
+        description: `Style: Classic Pixar 3D — anthropomorphic cat with human-proportioned body and cat head/ears/tail. Ultra detailed, cinematic soft lighting, and emotional realism. Backgrounds are lively urban or indoor spaces.`,
+        imageUrl: 'https://i.ibb.co/68474T7/pixar-style.png'
     },
     {
         type: 'predefined',
         name: 'Hoạt hình Đất sét Kỹ thuật số',
-        description: `Style: Digital claymation, Aardman-style. Anthropomorphic cat with a tactile, slightly imperfect, handcrafted feel. Textured surfaces with visible thumbprints. Warm, focused lighting. Stop-motion-like movement.`
+        description: `Style: Digital claymation, Aardman-style. Anthropomorphic cat with a tactile, slightly imperfect, handcrafted feel. Textured surfaces with visible thumbprints. Warm, focused lighting. Stop-motion-like movement.`,
+        imageUrl: 'https://i.ibb.co/6rP15sY/claymation-style.png'
     },
     {
         type: 'predefined',
         name: 'Màu nước Sống động',
-        description: `Style: Living watercolor, Ghibli-inspired. Anthropomorphic cat rendered with soft, bleeding watercolor textures and visible brush strokes. Rich, vibrant color palette. Dreamy, ethereal lighting.`
+        description: `Style: Living watercolor, Ghibli-inspired. Anthropomorphic cat rendered with soft, bleeding watercolor textures and visible brush strokes. Rich, vibrant color palette. Dreamy, ethereal lighting.`,
+        imageUrl: 'https://i.ibb.co/Q8p36sL/watercolor-style.png'
     },
     {
         type: 'predefined',
         name: 'Cel-Shaded Hoạt hình Nhật Bản',
-        description: `Style: Anime cel-shaded. Anthropomorphic cat with crisp black outlines, flat color fills, and sharp, stylized shadows. Dynamic, expressive facial features and energetic action lines. Bright, high-contrast lighting.`
+        description: `Style: Anime cel-shaded. Anthropomorphic cat with crisp black outlines, flat color fills, and sharp, stylized shadows. Dynamic, expressive facial features and energetic action lines. Bright, high-contrast lighting.`,
+        imageUrl: 'https://i.ibb.co/XDrwN1D/anime-style.png'
     },
     {
         type: 'predefined',
         name: 'Đồ họa Thấp Poly Tối giản',
-        description: `Style: Minimalist low-poly. Anthropomorphic cat constructed from visible geometric polygons. Flat, solid color palettes. Clean, abstract environments. Simple, direct lighting with hard-edged shadows.`
+        description: `Style: Minimalist low-poly. Anthropomorphic cat constructed from visible geometric polygons. Flat, solid color palettes. Clean, abstract environments. Simple, direct lighting with hard-edged shadows.`,
+        imageUrl: 'https://i.ibb.co/qN9PC61/low-poly-style.png'
     },
     {
         type: 'predefined',
         name: 'Đen trắng Cổ điển',
-        description: `Style: Vintage black-and-white, 1930s rubber hose animation style. Anthropomorphic cat with simple, looping animations, exaggerated movements, and pie-eyes. High-contrast monochrome palette. Film grain and subtle light flicker.`
+        description: `Style: Vintage black-and-white, 1930s rubber hose animation style. Anthropomorphic cat with simple, looping animations, exaggerated movements, and pie-eyes. High-contrast monochrome palette. Film grain and subtle light flicker.`,
+        imageUrl: 'https://i.ibb.co/fCwz7M1/vintage-style.png'
     }
 ];
 

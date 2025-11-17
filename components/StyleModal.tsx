@@ -42,6 +42,7 @@ const hasActiveApiKey = (provider: 'gemini' | 'openai'): boolean => {
 const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, currentStyle, aiConfig, addToast }) => {
   const [activeTab, setActiveTab] = useState<'select' | 'upload'>('select');
   const [selectedStyle, setSelectedStyle] = useState<VisualStyle>(currentStyle);
+  const [hoveredStyle, setHoveredStyle] = useState<VisualStyle | null>(null);
   
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -54,6 +55,7 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
   useEffect(() => {
     if (isOpen) {
         setSelectedStyle(currentStyle);
+        setHoveredStyle(null);
         // Reset upload tab state when modal opens
         setUploadedImage(null);
         setImagePreview(null);
@@ -129,9 +131,11 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
 
   if (!isOpen) return null;
 
+  const displayStyle = hoveredStyle || selectedStyle;
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <div className="bg-[#1A233A] text-gray-200 rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-700">
+      <div className="bg-[#1A233A] text-gray-200 rounded-2xl shadow-2xl w-full max-w-4xl border border-gray-700">
         <div className="p-6 border-b border-gray-700 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <PaintBrushIcon className="w-8 h-8 text-[var(--theme-400)]"/>
@@ -154,20 +158,45 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
             </div>
 
             {activeTab === 'select' && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 h-80 overflow-y-auto pr-2">
-                    {PREDEFINED_STYLES.map(style => (
-                        <button 
-                            key={style.name}
-                            onClick={() => setSelectedStyle(style)}
-                            className={`p-4 rounded-lg text-left border-2 transition-all duration-200 ${selectedStyle.name === style.name ? 'border-[var(--theme-500)] bg-gray-900/80 scale-105' : 'border-gray-700 bg-gray-900/50 hover:border-gray-600'}`}
-                        >
-                            <div className="flex justify-between items-center mb-2">
+                <div className="grid md:grid-cols-2 gap-6 h-80">
+                    <div 
+                      className="overflow-y-auto pr-2 grid grid-cols-2 gap-4"
+                      onMouseLeave={() => setHoveredStyle(null)}
+                    >
+                        {PREDEFINED_STYLES.map(style => (
+                            <button 
+                                key={style.name}
+                                onMouseEnter={() => setHoveredStyle(style)}
+                                onClick={() => setSelectedStyle(style)}
+                                className={`p-4 rounded-lg text-left border-2 transition-all duration-200 h-28 flex flex-col justify-between ${selectedStyle.name === style.name ? 'border-[var(--theme-500)] bg-gray-900/80 scale-105' : 'border-gray-700 bg-gray-900/50 hover:border-gray-600'}`}
+                            >
                                 <h4 className="font-semibold text-base text-gray-100">{style.name}</h4>
-                                {selectedStyle.name === style.name && <CheckIcon className="w-5 h-5 text-[var(--theme-400)]" />}
-                            </div>
-                            <p className="text-xs text-gray-400">{style.description.split('. ')[0]}.</p>
-                        </button>
-                    ))}
+                                {selectedStyle.name === style.name && <CheckIcon className="w-5 h-5 text-[var(--theme-400)] self-end" />}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex flex-col relative">
+                      {displayStyle?.imageUrl ? (
+                        <>
+                          <div className="w-full aspect-video bg-gray-900/50 rounded-lg mb-4 overflow-hidden shadow-lg">
+                            <img 
+                              key={displayStyle.name} // Force re-render on change
+                              src={displayStyle.imageUrl} 
+                              alt={`Preview for ${displayStyle.name}`}
+                              className="w-full h-full object-cover animate-fade-in"
+                            />
+                          </div>
+                          <div className="overflow-y-auto pr-2">
+                            <h4 className="font-semibold text-lg text-white">{displayStyle.name}</h4>
+                            <p className="text-sm text-gray-400 mt-1">{displayStyle.description}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full aspect-video bg-gray-900/50 rounded-lg flex items-center justify-center">
+                          <p className="text-gray-500">Di chuột qua một phong cách để xem trước</p>
+                        </div>
+                      )}
+                    </div>
                 </div>
             )}
             
