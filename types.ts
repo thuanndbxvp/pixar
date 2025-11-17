@@ -64,6 +64,12 @@ export interface VisualStyle {
   name: string;
   description: string;
   imageUrl?: string;
+  id?: string; // Optional id for custom styles
+}
+
+export interface StoredVisualStyle extends VisualStyle {
+  id: string;
+  type: 'custom';
 }
 
 export interface Session {
