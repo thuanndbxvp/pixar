@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
 import type { ScenePrompt, AIConfig, ApiKeyStore } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as openaiService from '../services/openaiService';
-import { ClipboardDocumentIcon, CheckIcon, ArrowDownTrayIcon, LanguageIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { ClipboardDocumentIcon, CheckIcon, ArrowDownTrayIcon, LanguageIcon, PhotoIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import TranslationModal from './TranslationModal';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -32,26 +32,40 @@ const hasActiveApiKey = (provider: 'gemini' | 'openai'): boolean => {
     return !!activeKey;
 };
 
-const SceneCard: React.FC<{
+interface SceneCardProps {
   scene: ScenePrompt;
   aiConfig: AIConfig | null;
   aspectRatio: '9:16' | '16:9';
-}> = ({ scene, aiConfig, aspectRatio }) => {
-    const [isGenerating, setIsGenerating] = useState(false);
+  onImageGenerated: () => void;
+  isBatchGenerating: boolean;
+}
+
+export interface SceneCardHandle {
+  generate: () => Promise<void>;
+  getImageData: () => { sceneNumber: number; data: string } | null;
+  hasImage: () => boolean;
+  setStatus: (status: 'idle' | 'queued' | 'generating' | 'success' | 'error') => void;
+}
+
+
+const SceneCard = forwardRef<SceneCardHandle, SceneCardProps>(({ scene, aiConfig, aspectRatio, onImageGenerated, isBatchGenerating }, ref) => {
+    const [status, setStatus] = useState<'idle' | 'queued' | 'generating' | 'success' | 'error'>('idle');
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const canGenerate = aiConfig ? hasActiveApiKey(aiConfig.provider) : false;
 
-    const handleGenerateImage = async () => {
+    const handleGenerateImage = useCallback(async () => {
         if (!aiConfig || !canGenerate) {
-            setError("Vui lòng kích hoạt API key cho nhà cung cấp đã chọn để tạo ảnh.");
-            return;
+            const errText = "Vui lòng kích hoạt API key cho nhà cung cấp đã chọn để tạo ảnh.";
+            setError(errText);
+            setStatus('error');
+            throw new Error(errText);
         }
-        setIsGenerating(true);
+        
+        setStatus('generating');
         setError(null);
-        setGeneratedImage(null);
-
+        
         try {
             let imageB64: string;
             if (aiConfig.provider === 'gemini') {
@@ -60,12 +74,34 @@ const SceneCard: React.FC<{
                 imageB64 = await openaiService.generateImageFromPrompt(scene.image_prompt, aspectRatio);
             }
             setGeneratedImage(`data:image/png;base64,${imageB64}`);
+            setStatus('success');
+            onImageGenerated();
         } catch (err: any) {
             setError(err.message || 'Một lỗi không xác định đã xảy ra khi tạo ảnh.');
-        } finally {
-            setIsGenerating(false);
+            setStatus('error');
+            throw err;
         }
-    };
+    }, [aiConfig, canGenerate, scene.image_prompt, aspectRatio, onImageGenerated]);
+
+     useImperativeHandle(ref, () => ({
+        generate: async () => {
+            if (status !== 'success' && status !== 'generating') {
+                await handleGenerateImage();
+            }
+        },
+        getImageData: () => {
+            if (generatedImage) {
+                return {
+                    sceneNumber: scene.scene_number,
+                    data: generatedImage.split(',')[1] 
+                };
+            }
+            return null;
+        },
+        hasImage: () => !!generatedImage,
+        setStatus: (newStatus) => setStatus(newStatus),
+    }), [generatedImage, handleGenerateImage, status, scene.scene_number]);
+
 
     return (
         <div className="bg-gray-800/70 p-5 rounded-lg border border-gray-700">
@@ -99,38 +135,46 @@ const SceneCard: React.FC<{
                 </div>
                 <div className="md:col-span-3 flex flex-col items-center justify-center bg-gray-900/50 p-4 rounded-lg min-h-[250px]">
                     <div className="w-full flex-grow flex items-center justify-center">
-                        {isGenerating ? (
+                        {status === 'generating' ? (
                             <div className="flex flex-col items-center text-center">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--theme-400)]"></div>
                                 <p className="mt-2 text-sm text-gray-400">Đang tạo ảnh...</p>
                             </div>
-                        ) : error ? (
+                        ) : status === 'error' ? (
                              <div className="text-center text-sm text-red-400 bg-red-500/10 p-3 rounded-md">
                                 <p className="font-semibold">Lỗi!</p>
                                 <p>{error}</p>
                             </div>
-                        ) : generatedImage ? (
+                        ) : status === 'success' && generatedImage ? (
                             <img src={generatedImage} alt={`Generated image for scene ${scene.scene_number}`} className="max-w-full max-h-full object-contain rounded-md" />
                         ) : (
                             <div className="text-center text-gray-500">
-                                <PhotoIcon className="w-12 h-12 mx-auto mb-2" />
-                                <p className="text-sm">Xem trước hình ảnh sẽ xuất hiện ở đây.</p>
+                                { status === 'queued' ? (
+                                    <>
+                                        <p className="text-sm font-semibold text-blue-400">Đang chờ trong hàng...</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <PhotoIcon className="w-12 h-12 mx-auto mb-2" />
+                                        <p className="text-sm">Xem trước hình ảnh sẽ xuất hiện ở đây.</p>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
                     <button
                         onClick={handleGenerateImage}
-                        disabled={isGenerating || !canGenerate}
+                        disabled={status === 'generating' || !canGenerate || isBatchGenerating}
                         className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-[var(--theme-500)] hover:bg-[var(--theme-600)] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <span>Tạo ảnh</span>
+                        <span>{status === 'success' ? 'Tạo lại ảnh' : 'Tạo ảnh'}</span>
                     </button>
                     {!canGenerate && <p className="text-xs text-yellow-400 mt-2 text-center">Vui lòng kích hoạt API key để tạo ảnh.</p>}
                 </div>
             </div>
         </div>
     );
-};
+});
 
 
 interface PromptDisplayProps {
@@ -142,90 +186,104 @@ interface PromptDisplayProps {
 }
 
 const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, storyTitle, aiConfig, aspectRatio }) => {
-    const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
-    const downloadMenuRef = useRef<HTMLDivElement>(null);
     const [isTranslating, setIsTranslating] = useState(false);
     const [translation, setTranslation] = useState<string | null>(null);
     const [translationError, setTranslationError] = useState<string | null>(null);
     const [isTranslationModalOpen, setIsTranslationModalOpen] = useState(false);
 
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
-                setIsDownloadMenuOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
+    const [isBatchGenerating, setIsBatchGenerating] = useState(false);
+    const [generatedImageCount, setGeneratedImageCount] = useState(0);
+    const sceneCardRefs = useRef<(SceneCardHandle | null)[]>([]);
 
     useEffect(() => {
-        // Reset translation state if the prompts content changes.
+        sceneCardRefs.current = sceneCardRefs.current.slice(0, prompts.length);
+    }, [prompts]);
+
+    useEffect(() => {
         setTranslation(null);
         setTranslationError(null);
         setIsTranslating(false);
+        setGeneratedImageCount(0);
     }, [prompts]);
+    
+    const handleImageGenerated = useCallback(() => {
+        setGeneratedImageCount(prev => prev + 1);
+    }, []);
 
-    const handleDownloadCsv = (type: 'all' | 'image' | 'video') => {
-        if (prompts.length === 0) return;
-
-        const escapeCsvCell = (cell: string | number): string => {
-            const str = String(cell).trim();
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return str;
-        };
-
-        let csvContent: string;
-
-        switch (type) {
-            case 'all': {
-                const headers = ['Scene Number', 'Scene Description', 'Image Prompt', 'Video Prompt'];
-                const dataRows = prompts.map(p => [p.scene_number, p.scene_text, p.image_prompt, p.video_prompt]);
-                const csvRows = [
-                    headers.join(','),
-                    ...dataRows.map(row => row.map(escapeCsvCell).join(','))
-                ];
-                csvContent = csvRows.join('\n');
-                break;
-            }
-            case 'image': {
-                const dataRows = prompts.map(p => [p.image_prompt]);
-                csvContent = dataRows.map(row => row.map(escapeCsvCell).join(',')).join('\n');
-                break;
-            }
-            case 'video': {
-                const dataRows = prompts.map(p => [p.video_prompt]);
-                csvContent = dataRows.map(row => row.map(escapeCsvCell).join(',')).join('\n');
-                break;
-            }
+    const handleGenerateAllImages = async () => {
+        setIsBatchGenerating(true);
+    
+        const queue = sceneCardRefs.current
+            .map((ref, index) => (ref && !ref.hasImage() ? index : -1))
+            .filter(index => index !== -1);
+    
+        if (queue.length === 0) {
+            setIsBatchGenerating(false);
+            return;
         }
-        
-        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-        const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-
-        const cleanTitle = storyTitle ? storyTitle.split('(')[0].trim() : 'prompts';
-        const filenameBase = cleanTitle.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-
-        const fileTypeMap = {
-            all: 'all_prompts',
-            image: 'image_prompts',
-            video: 'video_prompts'
+    
+        queue.forEach(index => sceneCardRefs.current[index]?.setStatus('queued'));
+    
+        const worker = async () => {
+            while (queue.length > 0) {
+                const index = queue.shift();
+                if (index !== undefined) {
+                    const ref = sceneCardRefs.current[index];
+                    if (ref) {
+                        try {
+                            await ref.generate();
+                        } catch (e) {
+                            console.error(`Lỗi trong worker cho cảnh ${index + 1}:`, e);
+                        }
+                    }
+                }
+            }
         };
+    
+        const CONCURRENCY = 4;
+        const workerPromises = Array.from({ length: CONCURRENCY }, worker);
+    
+        await Promise.all(workerPromises);
+    
+        setIsBatchGenerating(false);
+    };
 
-        link.download = `pixar_${fileTypeMap[type]}_${filenameBase}.csv`;
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        setIsDownloadMenuOpen(false);
+    const b64toBlob = (b64Data: string, contentType = '', sliceSize = 512) => {
+        const byteCharacters = atob(b64Data);
+        const byteArrays = [];
+        for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+            const slice = byteCharacters.slice(offset, offset + sliceSize);
+            const byteNumbers = new Array(slice.length);
+            for (let i = 0; i < slice.length; i++) {
+                byteNumbers[i] = slice.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            byteArrays.push(byteArray);
+        }
+        return new Blob(byteArrays, { type: contentType });
+    };
+    
+    const handleDownloadAllImages = () => {
+        const cleanTitle = (storyTitle || 'animation')
+            .split('(')[0].trim()
+            .replace(/\s+/g, '_')
+            .replace(/[^a-zA-Z0-9_]/g, '')
+            .toLowerCase();
+
+        sceneCardRefs.current.forEach(ref => {
+            const imageData = ref?.getImageData();
+            if (imageData) {
+                const blob = b64toBlob(imageData.data, 'image/png');
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${cleanTitle}_scene_${imageData.sceneNumber}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        });
     };
 
     const formatPromptsForTranslation = (): string => {
@@ -271,6 +329,24 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
             {prompts.length > 0 && !isLoading && (
                 <div className="flex items-center gap-2">
                     <button
+                      onClick={handleGenerateAllImages}
+                      disabled={isBatchGenerating}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 disabled:cursor-wait"
+                      title="Tạo tất cả ảnh"
+                    >
+                      <SparklesIcon className="w-4 h-4" />
+                      <span>Tạo tất cả ảnh</span>
+                    </button>
+                    <button
+                      onClick={handleDownloadAllImages}
+                      disabled={generatedImageCount === 0 || isBatchGenerating}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Tải về tất cả ảnh đã tạo"
+                    >
+                      <ArrowDownTrayIcon className="w-4 h-4" />
+                      <span>Tải ảnh về ({generatedImageCount})</span>
+                    </button>
+                    <button
                           onClick={handleTranslate}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
                           title="Dịch sang tiếng Việt"
@@ -278,46 +354,17 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
                          <LanguageIcon className="w-4 h-4" />
                          <span>Dịch</span>
                       </button>
-                    <div className="relative" ref={downloadMenuRef}>
-                        <button
-                          onClick={() => setIsDownloadMenuOpen(prev => !prev)}
+                     <button
+                          onClick={() => {
+                              const textToCopy = prompts.map(p => p.image_prompt).join('\n\n---\n\n');
+                              navigator.clipboard.writeText(textToCopy);
+                          }}
                           className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors font-medium bg-gray-700 hover:bg-gray-600 text-gray-300"
                           title="Tải về"
                         >
                           <ArrowDownTrayIcon className="w-5 h-5" />
                           <span>Tải về</span>
                         </button>
-                        {isDownloadMenuOpen && (
-                          <div className="absolute top-full right-0 mt-2 w-max bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 p-1">
-                            <ul>
-                              <li>
-                                <button
-                                  onClick={() => handleDownloadCsv('all')}
-                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
-                                >
-                                  Tải Excel (Đầy đủ)
-                                </button>
-                              </li>
-                              <li>
-                                <button
-                                  onClick={() => handleDownloadCsv('image')}
-                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
-                                >
-                                  Tải Excel (Chỉ Ảnh)
-                                </button>
-                              </li>
-                              <li>
-                                <button
-                                  onClick={() => handleDownloadCsv('video')}
-                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-gray-700 text-gray-300 transition-colors"
-                                >
-                                  Tải Excel (Chỉ Video)
-                                </button>
-                              </li>
-                            </ul>
-                          </div>
-                        )}
-                      </div>
                 </div>
             )}
         </div>
@@ -325,12 +372,15 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
             <LoadingSpinner />
         ) : (
             <div className="space-y-8">
-            {prompts.map((p) => (
+            {prompts.map((p, index) => (
               <SceneCard
                 key={p.scene_number}
+                ref={el => sceneCardRefs.current[index] = el}
                 scene={p}
                 aiConfig={aiConfig}
                 aspectRatio={aspectRatio}
+                onImageGenerated={handleImageGenerated}
+                isBatchGenerating={isBatchGenerating}
               />
             ))}
             </div>
