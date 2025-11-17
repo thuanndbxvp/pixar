@@ -16,37 +16,37 @@ export const PREDEFINED_STYLES: VisualStyle[] = [
         type: 'predefined',
         name: 'Cổ điển Pixar',
         description: `Style: Classic Pixar 3D — anthropomorphic cat with human-proportioned body and cat head/ears/tail. Ultra detailed, cinematic soft lighting, and emotional realism. Backgrounds are lively urban or indoor spaces.`,
-        imageUrl: 'https://i.ibb.co/ypsB057/pixar-style.jpg'
+        imageUrl: 'https://i.postimg.cc/JyL97QrN/1-Phong-cach-Co-dien-Pixar.jpg'
     },
     {
         type: 'predefined',
         name: 'Hoạt hình Đất sét Kỹ thuật số',
         description: `Style: Digital claymation, Aardman-style. Anthropomorphic cat with a tactile, slightly imperfect, handcrafted feel. Textured surfaces with visible thumbprints. Warm, focused lighting. Stop-motion-like movement.`,
-        imageUrl: 'https://i.ibb.co/wJd6Nn3/claymation-style.jpg'
+        imageUrl: 'https://i.postimg.cc/hz46TP7h/2-Phong-cach-Hoat-hinh-Dat-set-Ky-thuat-so-(Aardman).jpg'
     },
     {
         type: 'predefined',
         name: 'Màu nước Sống động',
         description: `Style: Living watercolor, Ghibli-inspired. Anthropomorphic cat rendered with soft, bleeding watercolor textures and visible brush strokes. Rich, vibrant color palette. Dreamy, ethereal lighting.`,
-        imageUrl: 'https://i.ibb.co/Y0wWp4R/watercolor-style.jpg'
+        imageUrl: 'https://i.postimg.cc/zbD6KXR7/3-Phong-cach-Mau-nuoc-Song-dong-(Ghibli-inspired-watercolor).jpg'
     },
     {
         type: 'predefined',
         name: 'Cel-Shaded Hoạt hình Nhật Bản',
         description: `Style: Anime cel-shaded. Anthropomorphic cat with crisp black outlines, flat color fills, and sharp, stylized shadows. Dynamic, expressive facial features and energetic action lines. Bright, high-contrast lighting.`,
-        imageUrl: 'https://i.ibb.co/nMSn3gR/anime-style.jpg'
+        imageUrl: 'https://i.postimg.cc/1nR2w5Np/4-Phong-cach-Cel-Shaded-Hoat-hinh-Nhat-Ban.jpg'
     },
     {
         type: 'predefined',
         name: 'Đồ họa Thấp Poly Tối giản',
         description: `Style: Minimalist low-poly. Anthropomorphic cat constructed from visible geometric polygons. Flat, solid color palettes. Clean, abstract environments. Simple, direct lighting with hard-edged shadows.`,
-        imageUrl: 'https://i.ibb.co/cFM9T0N/low-poly-style.jpg'
+        imageUrl: 'https://i.postimg.cc/gwH1x6rn/5-Phong-cach-Do-hoa-Thap-Poly-Toi-gian.jpg'
     },
     {
         type: 'predefined',
         name: 'Đen trắng Cổ điển',
         description: `Style: Vintage black-and-white, 1930s rubber hose animation style. Anthropomorphic cat with simple, looping animations, exaggerated movements, and pie-eyes. High-contrast monochrome palette. Film grain and subtle light flicker.`,
-        imageUrl: 'https://i.ibb.co/WcWz7sZ/vintage-style.jpg'
+        imageUrl: 'https://i.postimg.cc/G83VGhsy/6-Phong-cach-Den-trang-Co-dien-(1930s-Rubber-Hose).jpg'
     }
 ];
 
