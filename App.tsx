@@ -580,7 +580,13 @@ const App: React.FC = () => {
               )}
 
               {(step === Step.PROMPT_GENERATION || step === Step.PROMPTS_GENERATED) && (
-                 <PromptDisplay prompts={prompts} isLoading={loadingStep === Step.PROMPT_GENERATION} storyTitle={selectedStory?.title || null} aiConfig={aiConfig} />
+                 <PromptDisplay 
+                    prompts={prompts} 
+                    isLoading={loadingStep === Step.PROMPT_GENERATION} 
+                    storyTitle={selectedStory?.title || null} 
+                    aiConfig={aiConfig}
+                    aspectRatio={aspectRatio}
+                  />
               )}
 
               {step === Step.PROMPTS_GENERATED && (

@@ -1,17 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { ScenePrompt, AIConfig } from '../types';
+import type { ScenePrompt, AIConfig, ApiKeyStore } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as openaiService from '../services/openaiService';
-import { ClipboardDocumentIcon, CheckIcon, ArrowDownTrayIcon, LanguageIcon } from '@heroicons/react/24/outline';
+import { ClipboardDocumentIcon, CheckIcon, ArrowDownTrayIcon, LanguageIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import TranslationModal from './TranslationModal';
 import LoadingSpinner from './LoadingSpinner';
-
-interface PromptDisplayProps {
-  prompts: ScenePrompt[];
-  isLoading: boolean;
-  storyTitle: string | null;
-  aiConfig: AIConfig | null;
-}
 
 const CopyButton: React.FC<{ textToCopy: string }> = ({ textToCopy }) => {
     const [copied, setCopied] = useState(false);
@@ -29,7 +22,126 @@ const CopyButton: React.FC<{ textToCopy: string }> = ({ textToCopy }) => {
     );
 };
 
-const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, storyTitle, aiConfig }) => {
+const hasActiveApiKey = (provider: 'gemini' | 'openai'): boolean => {
+    const storeStr = localStorage.getItem('apiKeyStore');
+    if (!storeStr) return false;
+    const store: ApiKeyStore = JSON.parse(storeStr);
+    const providerStore = store[provider];
+    if (!providerStore || !providerStore.activeKeyId) return false;
+    const activeKey = providerStore.keys.find(k => k.id === providerStore.activeKeyId);
+    return !!activeKey;
+};
+
+const SceneCard: React.FC<{
+  scene: ScenePrompt;
+  aiConfig: AIConfig | null;
+  aspectRatio: '9:16' | '16:9';
+}> = ({ scene, aiConfig, aspectRatio }) => {
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const canGenerate = aiConfig ? hasActiveApiKey(aiConfig.provider) : false;
+
+    const handleGenerateImage = async () => {
+        if (!aiConfig || !canGenerate) {
+            setError("Vui lòng kích hoạt API key cho nhà cung cấp đã chọn để tạo ảnh.");
+            return;
+        }
+        setIsGenerating(true);
+        setError(null);
+        setGeneratedImage(null);
+
+        try {
+            let imageB64: string;
+            if (aiConfig.provider === 'gemini') {
+                imageB64 = await geminiService.generateImageFromPrompt(scene.image_prompt);
+            } else {
+                imageB64 = await openaiService.generateImageFromPrompt(scene.image_prompt, aspectRatio);
+            }
+            setGeneratedImage(`data:image/png;base64,${imageB64}`);
+        } catch (err: any) {
+            setError(err.message || 'Một lỗi không xác định đã xảy ra khi tạo ảnh.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    return (
+        <div className="bg-gray-800/70 p-5 rounded-lg border border-gray-700">
+            <h3 className="text-xl font-bold text-[var(--theme-400)] mb-4">Cảnh {scene.scene_number}</h3>
+            <div className="grid md:grid-cols-10 gap-6">
+                <div className="md:col-span-7 space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-gray-200 mb-2">Mô tả cảnh</h4>
+                        <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md">
+                            <p className="whitespace-pre-wrap">{scene.scene_text}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Hình ảnh</h4>
+                        <div className="relative">
+                            <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
+                                <p className="whitespace-pre-wrap">{scene.image_prompt}</p>
+                            </div>
+                            <CopyButton textToCopy={scene.image_prompt} />
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Video</h4>
+                        <div className="relative">
+                            <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
+                                <p className="whitespace-pre-wrap">{scene.video_prompt}</p>
+                            </div>
+                            <CopyButton textToCopy={scene.video_prompt} />
+                        </div>
+                    </div>
+                </div>
+                <div className="md:col-span-3 flex flex-col items-center justify-center bg-gray-900/50 p-4 rounded-lg min-h-[250px]">
+                    <div className="w-full flex-grow flex items-center justify-center">
+                        {isGenerating ? (
+                            <div className="flex flex-col items-center text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--theme-400)]"></div>
+                                <p className="mt-2 text-sm text-gray-400">Đang tạo ảnh...</p>
+                            </div>
+                        ) : error ? (
+                             <div className="text-center text-sm text-red-400 bg-red-500/10 p-3 rounded-md">
+                                <p className="font-semibold">Lỗi!</p>
+                                <p>{error}</p>
+                            </div>
+                        ) : generatedImage ? (
+                            <img src={generatedImage} alt={`Generated image for scene ${scene.scene_number}`} className="max-w-full max-h-full object-contain rounded-md" />
+                        ) : (
+                            <div className="text-center text-gray-500">
+                                <PhotoIcon className="w-12 h-12 mx-auto mb-2" />
+                                <p className="text-sm">Xem trước hình ảnh sẽ xuất hiện ở đây.</p>
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleGenerateImage}
+                        disabled={isGenerating || !canGenerate}
+                        className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-[var(--theme-500)] hover:bg-[var(--theme-600)] text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <span>Tạo ảnh</span>
+                    </button>
+                    {!canGenerate && <p className="text-xs text-yellow-400 mt-2 text-center">Vui lòng kích hoạt API key để tạo ảnh.</p>}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+interface PromptDisplayProps {
+  prompts: ScenePrompt[];
+  isLoading: boolean;
+  storyTitle: string | null;
+  aiConfig: AIConfig | null;
+  aspectRatio: '9:16' | '16:9';
+}
+
+const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, storyTitle, aiConfig, aspectRatio }) => {
     const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
     const downloadMenuRef = useRef<HTMLDivElement>(null);
     const [isTranslating, setIsTranslating] = useState(false);
@@ -214,37 +326,13 @@ const PromptDisplay: React.FC<PromptDisplayProps> = ({ prompts, isLoading, story
         ) : (
             <div className="space-y-8">
             {prompts.map((p) => (
-                  <div key={p.scene_number} className="bg-gray-800/70 p-5 rounded-lg border border-gray-700">
-                    <h3 className="text-xl font-bold text-[var(--theme-400)] mb-4">Cảnh {p.scene_number}</h3>
-                    
-                    <div className="space-y-4">
-                        <div>
-                            <h4 className="font-semibold text-gray-200 mb-2">Mô tả cảnh</h4>
-                            <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md">
-                                <p className="whitespace-pre-wrap">{p.scene_text}</p>
-                            </div>
-                        </div>
-                         <div>
-                            <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Hình ảnh</h4>
-                            <div className="relative">
-                                <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
-                                   <p className="whitespace-pre-wrap">{p.image_prompt}</p>
-                                </div>
-                                <CopyButton textToCopy={p.image_prompt} />
-                            </div>
-                        </div>
-                        <div>
-                            <h4 className="font-semibold text-gray-200 mb-2">Gợi ý Video</h4>
-                            <div className="relative">
-                                 <div className="text-gray-300 text-sm bg-gray-900/50 p-3 rounded-md pr-12">
-                                   <p className="whitespace-pre-wrap">{p.video_prompt}</p>
-                                </div>
-                                <CopyButton textToCopy={p.video_prompt} />
-                            </div>
-                        </div>
-                    </div>
-                  </div>
-              ))}
+              <SceneCard
+                key={p.scene_number}
+                scene={p}
+                aiConfig={aiConfig}
+                aspectRatio={aspectRatio}
+              />
+            ))}
             </div>
         )}
     </div>

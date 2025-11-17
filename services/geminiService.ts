@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import type { Story, ScenePrompt, ApiKeyStore } from '../types';
 import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, getRolePrompt, getRolePromptNoTranslation, ANALYZE_IMAGE_STYLE_PROMPT } from '../constants';
 
@@ -203,6 +203,34 @@ export const analyzeImageStyle = async (imageBase64: string, mimeType: string, m
             throw new Error(`Failed to analyze image with Gemini API: ${error.message}`);
         }
         throw new Error("Failed to analyze image with Gemini API.");
+    }
+};
+
+export const generateImageFromPrompt = async (prompt: string): Promise<string> => {
+    try {
+        const ai = getAiClient();
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash-image',
+          contents: {
+            parts: [{ text: prompt }],
+          },
+          config: {
+              responseModalities: [Modality.IMAGE], 
+          },
+        });
+
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+            return part.inlineData.data;
+          }
+        }
+        throw new Error("Không tìm thấy dữ liệu hình ảnh trong phản hồi của Gemini.");
+    } catch (error) {
+        console.error("Error generating image with Gemini:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to generate image with Gemini API: ${error.message}`);
+        }
+        throw new Error("Failed to generate image with Gemini API.");
     }
 };
 

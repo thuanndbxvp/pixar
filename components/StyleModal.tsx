@@ -3,7 +3,7 @@ import { XMarkIcon, PaintBrushIcon, CheckIcon, ArrowUpTrayIcon, SparklesIcon } f
 import { PREDEFINED_STYLES } from '../constants';
 import * as geminiService from '../services/geminiService';
 import * as openaiService from '../services/openaiService';
-import type { VisualStyle, AIConfig, Toast } from '../types';
+import type { VisualStyle, AIConfig, Toast, ApiKeyStore } from '../types';
 import LoadingSpinner from './LoadingSpinner';
 
 interface StyleModalProps {
@@ -28,6 +28,17 @@ const fileToBas64 = (file: File): Promise<{ base64: string; mimeType: string }> 
     });
 };
 
+const hasActiveApiKey = (provider: 'gemini' | 'openai'): boolean => {
+    const storeStr = localStorage.getItem('apiKeyStore');
+    if (!storeStr) return false;
+    const store: ApiKeyStore = JSON.parse(storeStr);
+    const providerStore = store[provider];
+    if (!providerStore || !providerStore.activeKeyId) return false;
+    const activeKey = providerStore.keys.find(k => k.id === providerStore.activeKeyId);
+    return !!activeKey;
+};
+
+
 const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, currentStyle, aiConfig, addToast }) => {
   const [activeTab, setActiveTab] = useState<'select' | 'upload'>('select');
   const [selectedStyle, setSelectedStyle] = useState<VisualStyle>(currentStyle);
@@ -36,6 +47,8 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [analyzedDescription, setAnalyzedDescription] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalyzeDisabled, setIsAnalyzeDisabled] = useState(false);
+  const [analyzeDisabledReason, setAnalyzeDisabledReason] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -48,8 +61,24 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
         setIsAnalyzing(false);
         // Set active tab based on current style type
         setActiveTab(currentStyle.type === 'predefined' ? 'select' : 'upload');
+        
+        // Check if analysis is possible
+        if (!aiConfig) {
+          setIsAnalyzeDisabled(true);
+          setAnalyzeDisabledReason('Vui lòng cấu hình nhà cung cấp AI trong phần Quản lý API.');
+        } else if (!hasActiveApiKey(aiConfig.provider)) {
+          const providerName = aiConfig.provider === 'gemini' ? 'Google Gemini' : 'OpenAI';
+          setIsAnalyzeDisabled(true);
+          setAnalyzeDisabledReason(`Vui lòng kích hoạt API key cho ${providerName} trong phần Quản lý API.`);
+        } else if (aiConfig.provider === 'openai' && !aiConfig.model.startsWith('gpt-4')) {
+          setIsAnalyzeDisabled(true);
+          setAnalyzeDisabledReason('Phân tích hình ảnh chỉ được hỗ trợ trên các mô hình GPT-4 có khả năng vision.');
+        } else {
+          setIsAnalyzeDisabled(false);
+          setAnalyzeDisabledReason('');
+        }
     }
-  }, [isOpen, currentStyle]);
+  }, [isOpen, currentStyle, aiConfig]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,7 +92,7 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
   };
 
   const handleAnalyze = async () => {
-    if (!uploadedImage || !aiConfig) return;
+    if (!uploadedImage || !aiConfig || isAnalyzeDisabled) return;
     setIsAnalyzing(true);
     setAnalyzedDescription('');
     try {
@@ -163,12 +192,15 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
                         </div>
                         <button 
                             onClick={handleAnalyze} 
-                            disabled={!uploadedImage || isAnalyzing}
+                            disabled={!uploadedImage || isAnalyzing || isAnalyzeDisabled}
                             className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 font-semibold text-white bg-[var(--theme-500)] rounded-lg hover:bg-[var(--theme-600)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <SparklesIcon className="w-5 h-5" />
                             <span>{isAnalyzing ? 'Đang phân tích...' : 'Phân tích Phong cách'}</span>
                         </button>
+                        {isAnalyzeDisabled && uploadedImage && (
+                            <p className="text-xs text-yellow-400 mt-2 text-center">{analyzeDisabledReason}</p>
+                        )}
                     </div>
                     {/* Right: Analysis Result */}
                     <div className="flex flex-col">

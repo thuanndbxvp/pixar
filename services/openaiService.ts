@@ -2,6 +2,8 @@ import type { Story, ScenePrompt, ApiKeyStore } from '../types';
 import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4PromptOpenAI, getRolePrompt, getRolePromptNoTranslation, ANALYZE_IMAGE_STYLE_PROMPT } from '../constants';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_IMAGE_API_URL = 'https://api.openai.com/v1/images/generations';
+
 
 const getOpenAiApiKey = (): string | null => {
     const storeStr = localStorage.getItem('apiKeyStore');
@@ -151,6 +153,45 @@ export const analyzeImageStyle = async (imageBase64: string, mimeType: string, m
 
     return await callOpenAI(messages, model);
 };
+
+export const generateImageFromPrompt = async (prompt: string, aspectRatio: '9:16' | '16:9'): Promise<string> => {
+    const apiKey = getOpenAiApiKey();
+    if (!apiKey) {
+        throw new Error("OpenAI API Key chưa được kích hoạt. Vui lòng thêm và kích hoạt một key trong phần Quản lý API.");
+    }
+
+    const body = {
+        model: "dall-e-3",
+        prompt: prompt,
+        n: 1,
+        size: aspectRatio === '16:9' ? '1792x1024' : '1024x1792',
+        response_format: "b64_json",
+        quality: "standard"
+    };
+
+    const response = await fetch(OPENAI_IMAGE_API_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        console.error("OpenAI Image API Error:", errorData);
+        throw new Error(`Tạo ảnh với OpenAI thất bại: ${errorData.error.message}`);
+    }
+
+    const data = await response.json();
+    if (data.data && data.data[0] && data.data[0].b64_json) {
+        return data.data[0].b64_json;
+    } else {
+        throw new Error("Không tìm thấy dữ liệu hình ảnh trong phản hồi của OpenAI.");
+    }
+};
+
 
 export const translateText = async (text: string, model: string): Promise<string> => {
     const prompt = `Translate the following English text to Vietnamese. Maintain the original formatting, including markdown and line breaks. Do not add any extra explanations or introductions. The text to translate is:\n\n---\n\n${text}`;
