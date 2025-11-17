@@ -1,5 +1,5 @@
-import type { Story, ScenePrompt, ApiKeyStore } from '../types';
-import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4PromptOpenAI, getRolePrompt, getRolePromptNoTranslation, ANALYZE_IMAGE_STYLE_PROMPT } from '../constants';
+import type { Story, ScenePrompt, ApiKeyStore, VisualStyle } from '../types';
+import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4PromptOpenAI, getRolePrompt, getRolePromptNoTranslation, getAnalyzeImagePrompt } from '../constants';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_IMAGE_API_URL = 'https://api.openai.com/v1/images/generations';
@@ -107,8 +107,8 @@ export const expandStory = async (storyContent: string, model: string, mood: str
     return await callOpenAI(messages, model);
 };
 
-export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string): Promise<string> => {
-    const prompt = getStep3Prompt(expandedStory, aspectRatio);
+export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string, visualStyle: VisualStyle): Promise<string> => {
+    const prompt = getStep3Prompt(expandedStory, aspectRatio, visualStyle);
     const messages = [
         { role: 'system', content: getRolePromptNoTranslation(mood) },
         { role: 'user', content: prompt }
@@ -133,7 +133,7 @@ export const generateVisualPrompts = async (script: string, model: string, aspec
     return result.scenes;
 };
 
-export const analyzeImageStyle = async (imageBase64: string, mimeType: string, model: string): Promise<string> => {
+export const analyzeImageStyle = async (imageBase64: string, mimeType: string, model: string, options: { style: boolean; character: boolean }): Promise<string> => {
      if (!model.startsWith('gpt-4')) {
         throw new Error("Phân tích hình ảnh chỉ được hỗ trợ trên các mô hình GPT-4 có khả năng vision (ví dụ: gpt-4o, gpt-4-turbo).");
     }
@@ -141,7 +141,7 @@ export const analyzeImageStyle = async (imageBase64: string, mimeType: string, m
     const messages = [{
         role: 'user',
         content: [
-            { type: 'text', text: ANALYZE_IMAGE_STYLE_PROMPT },
+            { type: 'text', text: getAnalyzeImagePrompt(options) },
             {
                 type: 'image_url',
                 image_url: {

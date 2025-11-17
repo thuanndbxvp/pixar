@@ -194,16 +194,11 @@ const App: React.FC = () => {
     const story = stories.find(s => s.id === selectedStoryId);
     if (!story || !story.expandedStory) return;
 
-    if (story.script) {
-        setStep(Step.SCRIPT_GENERATED);
-        return;
-    }
-
     setLoadingStep(Step.SCRIPT_GENERATION);
     setStep(Step.SCRIPT_GENERATION);
     try {
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
-        const generatedScript = await service.createScriptFromStory(story.expandedStory, aiConfig.model, aspectRatio, mood);
+        const generatedScript = await service.createScriptFromStory(story.expandedStory, aiConfig.model, aspectRatio, mood, visualStyle);
         
         setStories(prevStories => prevStories.map(s => 
             s.id === selectedStoryId ? { ...s, script: generatedScript, prompts: [] } : s
@@ -215,7 +210,7 @@ const App: React.FC = () => {
     } finally {
         setLoadingStep(null);
     }
-  }, [stories, selectedStoryId, aiConfig, aspectRatio, mood]);
+  }, [stories, selectedStoryId, aiConfig, aspectRatio, mood, visualStyle]);
 
   const handleGeneratePrompts = useCallback(async () => {
     if (selectedStoryId === null || !aiConfig) return;
@@ -366,9 +361,18 @@ const App: React.FC = () => {
   }, [uploadedScript, uploadedFileName]);
   
   const handleSaveStyle = (newStyle: VisualStyle) => {
+    const oldStyleType = visualStyle.type;
     setVisualStyle(newStyle);
     setIsStyleModalOpen(false);
-    addToast('Lưu Phong cách thành công!', `Đã áp dụng phong cách "${newStyle.name}".`, 'success');
+    
+    if (newStyle.type === 'character') {
+        addToast('Lưu Nhân vật thành công!', `Đã chọn nhân vật "${newStyle.name}".`, 'success');
+        if (oldStyleType !== 'character' || newStyle.id !== visualStyle.id) {
+            addToast('Cần cập nhật kịch bản', 'Hãy tạo lại kịch bản để áp dụng nhân vật mới.', 'info');
+        }
+    } else {
+        addToast('Lưu Phong cách thành công!', `Đã áp dụng phong cách "${newStyle.name}".`, 'success');
+    }
   }
 
   const currentTheme = themeColors[theme];

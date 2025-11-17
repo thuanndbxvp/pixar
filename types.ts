@@ -57,7 +57,7 @@ export interface ApiKeyStore {
   openai: ApiKeyProviderStore;
 }
 
-export type VisualStyleType = 'predefined' | 'analyzed' | 'custom';
+export type VisualStyleType = 'predefined' | 'analyzed' | 'custom' | 'character';
 
 export interface VisualStyle {
   type: VisualStyleType;
@@ -67,9 +67,19 @@ export interface VisualStyle {
   id?: string; // Optional id for custom styles
 }
 
-export interface StoredVisualStyle extends VisualStyle {
+export interface LibraryCharacter {
   id: string;
-  type: 'custom';
+  name: string;
+  species: string;
+  detailedAppearance: string;
+  visualStyleKeywords: string;
+}
+
+export interface StoredAnalyzedItem {
+  id: string;
+  name: string;
+  description: string;
+  type: 'custom_style' | 'custom_character';
 }
 
 export interface Session {

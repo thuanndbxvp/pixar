@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import type { Story, ScenePrompt, ApiKeyStore } from '../types';
-import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, getRolePrompt, getRolePromptNoTranslation, ANALYZE_IMAGE_STYLE_PROMPT } from '../constants';
+import type { Story, ScenePrompt, ApiKeyStore, VisualStyle } from '../types';
+import { STEP_1_PROMPT, getStep1FromSeedPrompt, getStep2Prompt, getStep3Prompt, getStep4Prompt, getRolePrompt, getRolePromptNoTranslation, getAnalyzeImagePrompt } from '../constants';
 
 const getGeminiApiKey = (): string | null => {
     const storeStr = localStorage.getItem('apiKeyStore');
@@ -119,10 +119,10 @@ export const expandStory = async (storyContent: string, model: string, mood: str
     }
 };
 
-export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string): Promise<string> => {
+export const createScriptFromStory = async (expandedStory: string, model: string, aspectRatio: '9:16' | '16:9', mood: string, visualStyle: VisualStyle): Promise<string> => {
     try {
         const ai = getAiClient();
-        const prompt = getStep3Prompt(expandedStory, aspectRatio);
+        const prompt = getStep3Prompt(expandedStory, aspectRatio, visualStyle);
         const response = await ai.models.generateContent({
             model: model,
             contents: [{ parts: [{ text: prompt }] }],
@@ -180,7 +180,7 @@ export const generateVisualPrompts = async (script: string, model: string, aspec
     }
 };
 
-export const analyzeImageStyle = async (imageBase64: string, mimeType: string, model: string): Promise<string> => {
+export const analyzeImageStyle = async (imageBase64: string, mimeType: string, model: string, options: { style: boolean; character: boolean }): Promise<string> => {
     try {
         const ai = getAiClient();
         const imagePart = {
@@ -189,7 +189,7 @@ export const analyzeImageStyle = async (imageBase64: string, mimeType: string, m
                 mimeType: mimeType
             }
         };
-        const textPart = { text: ANALYZE_IMAGE_STYLE_PROMPT };
+        const textPart = { text: getAnalyzeImagePrompt(options) };
 
         const response = await ai.models.generateContent({
             model: model,
