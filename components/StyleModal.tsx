@@ -65,7 +65,9 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
   
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [analyzedDescription, setAnalyzedDescription] = useState<string>('');
+  
+  const [analyzedStyle, setAnalyzedStyle] = useState('');
+  const [analyzedCharacter, setAnalyzedCharacter] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isAnalyzeDisabled, setIsAnalyzeDisabled] = useState(false);
   const [analyzeDisabledReason, setAnalyzeDisabledReason] = useState('');
@@ -73,7 +75,8 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [storedItems, setStoredItems] = useState<StoredAnalyzedItem[]>([]);
-  const [customItemName, setCustomItemName] = useState('');
+  const [customStyleName, setCustomStyleName] = useState('');
+  const [customCharacterName, setCustomCharacterName] = useState('');
 
   const handleAnalysisOptionChange = (option: 'style' | 'character') => {
     setAnalysisOptions(prev => {
@@ -92,9 +95,11 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
         setHoveredItem(null);
         setUploadedImage(null);
         setImagePreview(null);
-        setAnalyzedDescription('');
+        setAnalyzedStyle('');
+        setAnalyzedCharacter('');
         setIsAnalyzing(false);
-        setCustomItemName('');
+        setCustomStyleName('');
+        setCustomCharacterName('');
         setAnalysisOptions({ style: true, character: false });
         
         const storedCustomItems = JSON.parse(localStorage.getItem('customAnalyzedItems') || '[]');
@@ -125,8 +130,10 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
     if (file && file.type.startsWith('image/')) {
         setUploadedImage(file);
         setImagePreview(URL.createObjectURL(file));
-        setAnalyzedDescription('');
-        setCustomItemName('');
+        setAnalyzedStyle('');
+        setAnalyzedCharacter('');
+        setCustomStyleName('');
+        setCustomCharacterName('');
     } else {
         addToast("Tệp không hợp lệ", "Vui lòng tải lên một tệp hình ảnh.", "error");
     }
@@ -135,28 +142,37 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
   const handleAnalyze = async () => {
     if (!uploadedImage || !aiConfig || isAnalyzeDisabled) return;
     setIsAnalyzing(true);
-    setAnalyzedDescription('');
+    setAnalyzedStyle('');
+    setAnalyzedCharacter('');
     try {
         const { base64, mimeType } = await fileToBas64(uploadedImage);
         const service = aiConfig.provider === 'gemini' ? geminiService : openaiService;
         const description = await service.analyzeImageStyle(base64, mimeType, aiConfig.model, analysisOptions);
-        setAnalyzedDescription(description);
         
-        if (analysisOptions.character) {
+        const generatedName = uploadedImage.name.split('.')[0].replace(/[-_]/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase());
+
+        if (analysisOptions.style && analysisOptions.character) {
+            setAnalyzedCharacter(description);
+            const newChar = parseCharacterDescription(description);
+            setAnalyzedStyle(`Style: ${newChar.visualStyleKeywords}`);
+            setLocalCharacter(newChar);
+            setCustomCharacterName(newChar.name || generatedName);
+            setCustomStyleName(`${generatedName} Style`);
+        } else if (analysisOptions.character) {
+            setAnalyzedCharacter(description);
             const newChar = parseCharacterDescription(description);
             setLocalCharacter(newChar);
-        } else {
+            setCustomCharacterName(newChar.name || generatedName);
+        } else { // style only
+            setAnalyzedStyle(description);
             setLocalStyle({
                 type: 'analyzed',
                 name: `Phân tích từ: ${uploadedImage.name}`,
                 description: description
             });
+            setCustomStyleName(`${generatedName} Style`);
         }
-        
-        const generatedName = uploadedImage.name.split('.')[0].replace(/[-_]/g, ' ')
-            .replace(/\b\w/g, l => l.toUpperCase());
-        setCustomItemName(generatedName);
-
     } catch (err: any) {
         addToast("Lỗi Phân tích", err.message, "error");
     } finally {
@@ -164,22 +180,38 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
     }
   };
   
-  const handleSaveToLibrary = () => {
-    if (!customItemName.trim() || !analyzedDescription.trim()) return;
+  const handleSaveStyleToLibrary = () => {
+    if (!customStyleName.trim() || !analyzedStyle.trim()) return;
 
     const newItem: StoredAnalyzedItem = {
         id: crypto.randomUUID(),
-        name: customItemName,
-        description: analyzedDescription,
-        type: analysisOptions.character ? 'custom_character' : 'custom_style',
+        name: customStyleName,
+        description: analyzedStyle,
+        type: 'custom_style',
     };
 
     const updatedItems = [...storedItems, newItem];
     setStoredItems(updatedItems);
     localStorage.setItem('customAnalyzedItems', JSON.stringify(updatedItems));
     
-    setCustomItemName('');
-    addToast('Lưu thành công!', `"${newItem.name}" đã được thêm vào thư viện.`, 'success');
+    addToast('Lưu thành công!', `Phong cách "${newItem.name}" đã được thêm vào thư viện.`, 'success');
+  };
+
+  const handleSaveCharacterToLibrary = () => {
+    if (!customCharacterName.trim() || !analyzedCharacter.trim()) return;
+
+    const newItem: StoredAnalyzedItem = {
+        id: crypto.randomUUID(),
+        name: customCharacterName,
+        description: analyzedCharacter,
+        type: 'custom_character',
+    };
+
+    const updatedItems = [...storedItems, newItem];
+    setStoredItems(updatedItems);
+    localStorage.setItem('customAnalyzedItems', JSON.stringify(updatedItems));
+    
+    addToast('Lưu thành công!', `Nhân vật "${newItem.name}" đã được thêm vào thư viện.`, 'success');
   };
   
   const handleDeleteCustomItem = (itemId: string) => {
@@ -219,6 +251,9 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
   
   const displayItem = hoveredItem || localCharacter || localStyle;
   const isCharacter = (item: any): item is LibraryCharacter => !!item?.species;
+  
+  const customStyles = storedItems.filter(item => item.type === 'custom_style');
+  const customCharacters = storedItems.filter(item => item.type === 'custom_character');
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
@@ -309,7 +344,7 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
             )}
             
             {activeTab === 'upload' && (
-                <div className="grid md:grid-cols-2 gap-6 h-96 overflow-y-auto pr-2">
+                <div className="grid md:grid-cols-2 gap-6 h-96">
                     <div className="flex flex-col items-center">
                        <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" ref={fileInputRef} />
                         <div 
@@ -351,41 +386,42 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
                             <p className="text-xs text-yellow-400 mt-2 text-center">{analyzeDisabledReason}</p>
                         )}
                     </div>
-                    <div className="flex flex-col">
-                        <label htmlFor="style-description" className="block text-sm font-medium text-gray-300 mb-2">Kết quả Phân tích (tạo bởi AI)</label>
-                        <div className="relative flex-grow flex flex-col">
-                             {isAnalyzing && <div className="absolute inset-0 flex items-center justify-center bg-gray-800/80 rounded-lg"><LoadingSpinner /></div>}
-                            <textarea
-                                id="style-description"
-                                value={analyzedDescription}
-                                readOnly
-                                placeholder={isAnalyzing ? "AI đang phân tích hình ảnh..." : "Kết quả phân tích sẽ xuất hiện ở đây."}
-                                className="w-full flex-grow bg-gray-800 border border-gray-600 rounded-lg p-3 text-gray-200 focus:ring-2 focus:ring-[var(--theme-500)] focus:border-[var(--theme-500)] transition-colors text-sm"
-                                rows={6}
-                            />
-                             {analyzedDescription && !isAnalyzing && (
-                                <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                    <label htmlFor="custom-style-name" className="block text-sm font-medium text-gray-300 mb-2">Lưu vào Thư viện Tùy chỉnh</label>
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            id="custom-style-name"
-                                            type="text"
-                                            value={customItemName}
-                                            onChange={(e) => setCustomItemName(e.target.value)}
-                                            placeholder="Đặt tên cho mục này..."
-                                            className="flex-grow bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-gray-200 text-sm focus:ring-2 focus:ring-[var(--theme-500)]"
-                                        />
-                                        <button
-                                            onClick={handleSaveToLibrary}
-                                            disabled={!customItemName.trim()}
-                                            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50"
-                                        >
-                                            Lưu
-                                        </button>
+                    <div className="flex flex-col relative">
+                        <h4 className="text-base font-semibold text-gray-200 mb-2">Kết quả Phân tích (tạo bởi AI)</h4>
+                        {isAnalyzing ? <div className="absolute inset-0 top-8 flex items-center justify-center bg-gray-800/80 rounded-lg"><LoadingSpinner /></div> : 
+                        (!analyzedStyle && !analyzedCharacter) ?
+                            <div className="flex-grow flex items-center justify-center bg-gray-800/50 rounded-lg border border-gray-700 text-gray-500">
+                                Kết quả sẽ xuất hiện ở đây.
+                            </div>
+                        : (
+                            <div className="flex flex-col gap-4 overflow-y-auto pr-2">
+                                {analyzedStyle && (
+                                    <div className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex flex-col">
+                                        <label className="text-sm font-medium text-gray-300 mb-1">Phong cách</label>
+                                        <textarea value={analyzedStyle} readOnly className="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-gray-300 text-xs" rows={4}/>
+                                        <div className="mt-2">
+                                            <div className="flex items-center gap-2">
+                                                <input type="text" value={customStyleName} onChange={e => setCustomStyleName(e.target.value)} placeholder="Đặt tên để lưu..." className="flex-grow bg-gray-900 border border-gray-600 rounded-md px-2 py-1 text-gray-200 text-xs focus:ring-1 focus:ring-[var(--theme-500)]"/>
+                                                <button onClick={handleSaveStyleToLibrary} disabled={!customStyleName.trim()} className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md text-xs transition-colors disabled:opacity-50">Lưu</button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                                {analyzedCharacter && (
+                                    <div className="bg-gray-800 p-3 rounded-lg border border-gray-700 flex flex-col">
+                                        <label className="text-sm font-medium text-gray-300 mb-1">Nhân vật</label>
+                                        <textarea value={analyzedCharacter} readOnly className="w-full bg-gray-900 border border-gray-600 rounded-md p-2 text-gray-300 text-xs" rows={6}/>
+                                        <div className="mt-2">
+                                            <div className="flex items-center gap-2">
+                                                <input type="text" value={customCharacterName} onChange={e => setCustomCharacterName(e.target.value)} placeholder="Đặt tên để lưu..." className="flex-grow bg-gray-900 border border-gray-600 rounded-md px-2 py-1 text-gray-200 text-xs focus:ring-1 focus:ring-[var(--theme-500)]"/>
+                                                <button onClick={handleSaveCharacterToLibrary} disabled={!customCharacterName.trim()} className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md text-xs transition-colors disabled:opacity-50">Lưu</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                        }
                     </div>
                 </div>
             )}
@@ -399,33 +435,46 @@ const StyleModal: React.FC<StyleModalProps> = ({ isOpen, onClose, onSave, curren
                             <p>Lưu các phong cách hoặc nhân vật đã phân tích để sử dụng lại sau này.</p>
                         </div>
                     ) : (
-                        <ul className="space-y-3">
-                            {storedItems.map(item => (
-                                <li 
-                                    key={item.id} 
-                                    className={`flex items-center justify-between p-3 rounded-lg border-2 transition-colors ${(localStyle.id === item.id || localCharacter?.id === item.id) ? 'border-[var(--theme-500)] bg-gray-900/80' : 'border-gray-700 bg-gray-900/50'}`}
-                                >
-                                    <div className="flex-1 min-w-0 flex items-center gap-3">
-                                        {item.type === 'custom_character' ? <UserGroupIcon className="w-5 h-5 text-gray-400 flex-shrink-0" /> : <PaintBrushIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />}
-                                        <div>
-                                          <p className="font-semibold text-white truncate">{item.name}</p>
-                                          <p className="text-xs text-gray-400 truncate">{item.description}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                                        <button 
-                                            onClick={() => handleSelectCustomItem(item)}
-                                            className="px-3 py-1 bg-gray-700 hover:bg-[var(--theme-500)] text-white font-semibold rounded-md transition-colors text-sm"
-                                        >
-                                            {(localStyle.id === item.id || localCharacter?.id === item.id) ? 'Đã chọn' : 'Chọn'}
-                                        </button>
-                                        <button onClick={() => handleDeleteCustomItem(item.id)} className="p-2 text-gray-400 hover:text-red-400 transition-colors">
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 className="text-lg font-semibold text-[var(--theme-400)] mb-3 text-center border-b border-gray-700 pb-2">Phong cách</h4>
+                                {customStyles.length > 0 ? (
+                                    <ul className="space-y-3">
+                                        {customStyles.map(item => (
+                                             <li key={item.id} className={`p-3 rounded-lg border-2 transition-colors ${localStyle.id === item.id ? 'border-[var(--theme-500)] bg-gray-900/80' : 'border-gray-700 bg-gray-900/50'}`}>
+                                                <p className="font-semibold text-white truncate">{item.name}</p>
+                                                <p className="text-xs text-gray-400 truncate mt-1">{item.description}</p>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <button onClick={() => handleSelectCustomItem(item)} className="flex-1 text-center py-1 bg-gray-700 hover:bg-[var(--theme-500)] text-white font-semibold rounded-md transition-colors text-sm">{localStyle.id === item.id ? 'Đã chọn' : 'Chọn'}</button>
+                                                    <button onClick={() => handleDeleteCustomItem(item.id)} className="p-2 text-gray-400 hover:text-red-400 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-gray-500 text-center mt-4">Chưa có phong cách nào được lưu.</p>
+                                )}
+                            </div>
+                             <div>
+                                <h4 className="text-lg font-semibold text-[var(--theme-400)] mb-3 text-center border-b border-gray-700 pb-2">Nhân vật</h4>
+                                {customCharacters.length > 0 ? (
+                                    <ul className="space-y-3">
+                                        {customCharacters.map(item => (
+                                            <li key={item.id} className={`p-3 rounded-lg border-2 transition-colors ${localCharacter?.id === item.id ? 'border-[var(--theme-500)] bg-gray-900/80' : 'border-gray-700 bg-gray-900/50'}`}>
+                                                <p className="font-semibold text-white truncate">{item.name}</p>
+                                                <p className="text-xs text-gray-400 truncate mt-1">{item.description}</p>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <button onClick={() => handleSelectCustomItem(item)} className="flex-1 text-center py-1 bg-gray-700 hover:bg-[var(--theme-500)] text-white font-semibold rounded-md transition-colors text-sm">{localCharacter?.id === item.id ? 'Đã chọn' : 'Chọn'}</button>
+                                                    <button onClick={() => handleDeleteCustomItem(item.id)} className="p-2 text-gray-400 hover:text-red-400 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-gray-500 text-center mt-4">Chưa có nhân vật nào được lưu.</p>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
             )}
